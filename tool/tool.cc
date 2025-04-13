@@ -61,6 +61,7 @@ static const Tool kTools[] = {
   { "sha384sum", SHA384Sum },
   { "sha512sum", SHA512Sum },
   { "sha512256sum", SHA512256Sum },
+  { "sm3sum", SM3Sum },
   { "sign", Sign },
   { "speed", Speed },
   { "", nullptr },

@@ -74,6 +74,7 @@ static const nid_triple kTriples[] = {
     {NID_sha256WithRSAEncryption, NID_sha256, NID_rsaEncryption},
     {NID_sha384WithRSAEncryption, NID_sha384, NID_rsaEncryption},
     {NID_sha512WithRSAEncryption, NID_sha512, NID_rsaEncryption},
+    {NID_sm3WithRSAEncryption, NID_sm3, NID_rsaEncryption},
     // DSA.
     {NID_dsaWithSHA1, NID_sha1, NID_dsa},
     {NID_dsaWithSHA1_2, NID_sha1, NID_dsa_2},

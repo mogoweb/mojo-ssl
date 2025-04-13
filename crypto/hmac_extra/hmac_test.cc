@@ -81,6 +81,8 @@ static const EVP_MD *GetDigest(const std::string &name) {
     return EVP_sha384();
   } else if (name == "SHA512") {
     return EVP_sha512();
+  } else if (name == "SM3") {
+    return EVP_sm3();
   }
   return nullptr;
 }

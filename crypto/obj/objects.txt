@@ -1358,3 +1358,36 @@ secg-scheme 14 3 : dhSinglePass-cofactorDH-sha512kdf-scheme
  : AuthANY : auth-any
 
  : HKDF : hkdf
+
+member-body 156         : ISO-CN        : ISO CN Member Body
+ISO-CN 10197            : oscca
+oscca 1                 : sm-scheme
+
+sm-scheme 301           : SM2                   : sm2
+
+sm-scheme 401           : SM3                   : sm3
+sm-scheme 504           : RSA-SM3		: sm3WithRSAEncryption
+
+sm-scheme 501           : SM2-SM3               : SM2-with-SM3
+
+# From GM/T 0091-2020
+sm3 3 1			:			: hmacWithSM3
+
+# ZUC stream cipher
+sm-scheme 201           : ZUC                   : zuc
+sm-scheme 801           : ZUC-128-EEA3          : zuc-128-eea3
+sm-scheme 802           : ZUC-128-EIA3          : zuc-128-eia3
+
+# Definitions for SM4 cipher
+
+sm-scheme 104 1         : SM4-ECB             : sm4-ecb
+sm-scheme 104 2         : SM4-CBC             : sm4-cbc
+!Cname sm4-ofb128
+sm-scheme 104 3         : SM4-OFB             : sm4-ofb
+!Cname sm4-cfb128
+sm-scheme 104 4         : SM4-CFB             : sm4-cfb
+sm-scheme 104 5         : SM4-CFB1            : sm4-cfb1
+sm-scheme 104 6         : SM4-CFB8            : sm4-cfb8
+sm-scheme 104 7         : SM4-CTR             : sm4-ctr
+sm-scheme 104 8         : SM4-GCM             : sm4-gcm
+sm-scheme 104 9         : SM4-CCM             : sm4-ccm

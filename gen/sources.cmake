@@ -413,6 +413,7 @@ set(
   crypto/rsa_extra/rsa_crypt.c
   crypto/rsa_extra/rsa_print.c
   crypto/siphash/siphash.c
+  crypto/sm3/sm3.c
   crypto/spx/address.c
   crypto/spx/fors.c
   crypto/spx/merkle.c
@@ -577,6 +578,7 @@ set(
   include/openssl/service_indicator.h
   include/openssl/sha.h
   include/openssl/siphash.h
+  include/openssl/sm3.h
   include/openssl/span.h
   include/openssl/stack.h
   include/openssl/target.h
@@ -642,6 +644,7 @@ set(
   crypto/poly1305/internal.h
   crypto/pool/internal.h
   crypto/rsa_extra/internal.h
+  crypto/sm3/sm3_local.h
   crypto/spx/address.h
   crypto/spx/fors.h
   crypto/spx/merkle.h
@@ -761,6 +764,7 @@ set(
   crypto/rsa_extra/rsa_test.cc
   crypto/self_test.cc
   crypto/siphash/siphash_test.cc
+  crypto/sm3/sm3_test.cc
   crypto/spx/spx_test.cc
   crypto/stack/stack_test.cc
   crypto/test/gtest_main.cc

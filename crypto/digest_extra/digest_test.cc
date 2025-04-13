@@ -31,6 +31,7 @@
 #include <openssl/nid.h>
 #include <openssl/obj.h>
 #include <openssl/sha.h>
+#include <openssl/sm3.h>
 
 #include "../internal.h"
 #include "../test/test_util.h"
@@ -56,6 +57,7 @@ static const MD sha512 = { "SHA512", &EVP_sha512, &SHA512 };
 static const MD sha512_256 = { "SHA512-256", &EVP_sha512_256, &SHA512_256 };
 static const MD md5_sha1 = { "MD5-SHA1", &EVP_md5_sha1, nullptr };
 static const MD blake2b256 = { "BLAKE2b-256", &EVP_blake2b256, nullptr };
+static const MD sm3 = { "SM3", &EVP_sm3, &SM3 };
 
 struct DigestTestVector {
   // md is the digest to test.
@@ -150,6 +152,10 @@ static const DigestTestVector kTestVectors[] = {
     // BLAKE2b-256 tests.
     {blake2b256, "abc", 1,
      "bddd813c634239723171ef3fee98579b94964e3bb1cb3e427262c8c068d52319"},
+    
+    // SM3 tests
+    {sm3, "abc", 1,
+     "66c7f0f462eeedd9d1f2d46bdc10e4e24167c4875cf2f7a2297da02b8f4ba8e0"},
 };
 
 static void CompareDigest(const DigestTestVector *test,

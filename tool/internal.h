@@ -137,6 +137,7 @@ bool SHA256Sum(const std::vector<std::string> &args);
 bool SHA384Sum(const std::vector<std::string> &args);
 bool SHA512Sum(const std::vector<std::string> &args);
 bool SHA512256Sum(const std::vector<std::string> &args);
+bool SM3Sum(const std::vector<std::string> &args);
 bool Server(const std::vector<std::string> &args);
 bool Sign(const std::vector<std::string> &args);
 bool Speed(const std::vector<std::string> &args);

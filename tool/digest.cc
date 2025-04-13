@@ -454,3 +454,7 @@ bool SHA512Sum(const std::vector<std::string> &args) {
 bool SHA512256Sum(const std::vector<std::string> &args) {
   return DigestSum(EVP_sha512_256(), args);
 }
+
+bool SM3Sum(const std::vector<std::string> &args) {
+  return DigestSum(EVP_sm3(), args);
+}
