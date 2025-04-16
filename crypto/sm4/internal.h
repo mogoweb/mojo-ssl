@@ -54,76 +54,24 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/cipher.h>
+#ifndef OPENSSL_HEADER_SM4_INTERNAL_H
+#define OPENSSL_HEADER_SM4_INTERNAL_H
 
-#include <assert.h>
-#include <string.h>
+#include <openssl/base.h>
+#include <openssl/sm4.h>
 
-#include <openssl/err.h>
-#include <openssl/mem.h>
-#include <openssl/nid.h>
-
-#include "internal.h"
 #include "../internal.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
-static const struct {
-  int nid;
-  const char *name;
-  const EVP_CIPHER *(*func)(void);
-} kCiphers[] = {
-    {NID_aes_128_cbc, "aes-128-cbc", EVP_aes_128_cbc},
-    {NID_aes_128_ctr, "aes-128-ctr", EVP_aes_128_ctr},
-    {NID_aes_128_ecb, "aes-128-ecb", EVP_aes_128_ecb},
-    {NID_aes_128_gcm, "aes-128-gcm", EVP_aes_128_gcm},
-    {NID_aes_128_ofb128, "aes-128-ofb", EVP_aes_128_ofb},
-    {NID_aes_192_cbc, "aes-192-cbc", EVP_aes_192_cbc},
-    {NID_aes_192_ctr, "aes-192-ctr", EVP_aes_192_ctr},
-    {NID_aes_192_ecb, "aes-192-ecb", EVP_aes_192_ecb},
-    {NID_aes_192_gcm, "aes-192-gcm", EVP_aes_192_gcm},
-    {NID_aes_192_ofb128, "aes-192-ofb", EVP_aes_192_ofb},
-    {NID_aes_256_cbc, "aes-256-cbc", EVP_aes_256_cbc},
-    {NID_aes_256_ctr, "aes-256-ctr", EVP_aes_256_ctr},
-    {NID_aes_256_ecb, "aes-256-ecb", EVP_aes_256_ecb},
-    {NID_aes_256_gcm, "aes-256-gcm", EVP_aes_256_gcm},
-    {NID_aes_256_ofb128, "aes-256-ofb", EVP_aes_256_ofb},
-    {NID_des_cbc, "des-cbc", EVP_des_cbc},
-    {NID_des_ecb, "des-ecb", EVP_des_ecb},
-    {NID_des_ede_cbc, "des-ede-cbc", EVP_des_ede_cbc},
-    {NID_des_ede_ecb, "des-ede", EVP_des_ede},
-    {NID_des_ede3_cbc, "des-ede3-cbc", EVP_des_ede3_cbc},
-    {NID_rc2_cbc, "rc2-cbc", EVP_rc2_cbc},
-    {NID_rc4, "rc4", EVP_rc4},
-    {NID_sm4_ecb, "sm4-ecb", EVP_sm4_ecb},
-    {NID_sm4_cbc, "sm4-cbc", EVP_sm4_cbc},
-};
+void SM4_cbc_encrypt_ex(const uint8_t *in, uint8_t *out, size_t len,
+                        const SM4_KEY *key, uint8_t *ivec,
+                        int enc);
 
-const EVP_CIPHER *EVP_get_cipherbynid(int nid) {
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kCiphers); i++) {
-    if (kCiphers[i].nid == nid) {
-      return kCiphers[i].func();
-    }
-  }
-  return NULL;
-}
+#if defined(__cplusplus)
+}  // extern C
+#endif
 
-const EVP_CIPHER *EVP_get_cipherbyname(const char *name) {
-  if (name == NULL) {
-    return NULL;
-  }
-
-  // This is not a name used by OpenSSL, but tcpdump registers it with
-  // |EVP_add_cipher_alias|. Our |EVP_add_cipher_alias| is a no-op, so we
-  // support the name here.
-  if (OPENSSL_strcasecmp(name, "3des") == 0) {
-    name = "des-ede3-cbc";
-  }
-
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kCiphers); i++) {
-    if (OPENSSL_strcasecmp(kCiphers[i].name, name) == 0) {
-      return kCiphers[i].func();
-    }
-  }
-
-  return NULL;
-}
+#endif

@@ -52,10 +52,12 @@
 #include "internal.h"
 #include "../../internal.h"
 
+typedef void (*block128_f_internal)(const uint8_t in[16], uint8_t out[16],
+                                    const void *key);
 
-void CRYPTO_cbc128_encrypt(const uint8_t *in, uint8_t *out, size_t len,
-                           const AES_KEY *key, uint8_t ivec[16],
-                           block128_f block) {
+static void CRYPTO_cbc128_encrypt_internal(const uint8_t *in, uint8_t *out, size_t len,
+                                           const void *key, uint8_t ivec[16],
+                                           block128_f_internal block) {
   assert(key != NULL && ivec != NULL);
   if (len == 0) {
     // Avoid |ivec| == |iv| in the |memcpy| below, which is not legal in C.
@@ -94,9 +96,9 @@ void CRYPTO_cbc128_encrypt(const uint8_t *in, uint8_t *out, size_t len,
   OPENSSL_memcpy(ivec, iv, 16);
 }
 
-void CRYPTO_cbc128_decrypt(const uint8_t *in, uint8_t *out, size_t len,
-                           const AES_KEY *key, uint8_t ivec[16],
-                           block128_f block) {
+static void CRYPTO_cbc128_decrypt_internal(const uint8_t *in, uint8_t *out, size_t len,
+                                           const void *key, uint8_t ivec[16],
+                                           block128_f_internal block) {
   assert(key != NULL && ivec != NULL);
   if (len == 0) {
     // Avoid |ivec| == |iv| in the |memcpy| below, which is not legal in C.
@@ -161,4 +163,28 @@ void CRYPTO_cbc128_decrypt(const uint8_t *in, uint8_t *out, size_t len,
     in += 16;
     out += 16;
   }
+}
+
+void CRYPTO_cbc128_encrypt(const uint8_t *in, uint8_t *out, size_t len,
+                           const AES_KEY *key, uint8_t ivec[16],
+                           block128_f block) {
+  CRYPTO_cbc128_encrypt_internal(in, out, len, key, ivec, (block128_f_internal)block);
+}
+
+void CRYPTO_cbc128_decrypt(const uint8_t *in, uint8_t *out, size_t len,
+                           const AES_KEY *key, uint8_t ivec[16],
+                           block128_f block) {
+  CRYPTO_cbc128_decrypt_internal(in, out, len, key, ivec, (block128_f_internal)block);
+}
+
+void CRYPTO_sm4_cbc128_encrypt(const uint8_t *in, uint8_t *out, size_t len,
+                               const SM4_KEY *key, uint8_t ivec[16],
+                               sm4_block128_f block) {
+  CRYPTO_cbc128_encrypt_internal(in, out, len, key, ivec, (block128_f_internal)block);
+}
+
+void CRYPTO_sm4_cbc128_decrypt(const uint8_t *in, uint8_t *out, size_t len,
+                               const SM4_KEY *key, uint8_t ivec[16],
+                               sm4_block128_f block) {
+  CRYPTO_cbc128_decrypt_internal(in, out, len, key, ivec, (block128_f_internal)block);
 }

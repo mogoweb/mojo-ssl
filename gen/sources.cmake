@@ -324,6 +324,7 @@ set(
   crypto/cipher_extra/e_null.c
   crypto/cipher_extra/e_rc2.c
   crypto/cipher_extra/e_rc4.c
+  crypto/cipher_extra/e_sm4.c
   crypto/cipher_extra/e_tls.c
   crypto/cipher_extra/tls_cbc.c
   crypto/conf/conf.c
@@ -414,6 +415,8 @@ set(
   crypto/rsa_extra/rsa_print.c
   crypto/siphash/siphash.c
   crypto/sm3/sm3.c
+  crypto/sm4/sm4.c
+  crypto/sm4/sm4_cbc.c
   crypto/spx/address.c
   crypto/spx/fors.c
   crypto/spx/merkle.c
@@ -579,6 +582,7 @@ set(
   include/openssl/sha.h
   include/openssl/siphash.h
   include/openssl/sm3.h
+  include/openssl/sm4.h
   include/openssl/span.h
   include/openssl/stack.h
   include/openssl/target.h
@@ -765,6 +769,7 @@ set(
   crypto/self_test.cc
   crypto/siphash/siphash_test.cc
   crypto/sm3/sm3_test.cc
+  crypto/sm4/sm4_test.cc
   crypto/spx/spx_test.cc
   crypto/stack/stack_test.cc
   crypto/test/gtest_main.cc

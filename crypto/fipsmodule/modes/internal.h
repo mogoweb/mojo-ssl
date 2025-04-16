@@ -52,6 +52,7 @@
 #include <openssl/base.h>
 
 #include <openssl/aes.h>
+#include <openssl/sm4.h>
 
 #include <assert.h>
 #include <stdlib.h>
@@ -75,6 +76,10 @@ extern "C" {
 // These functions are called exclusively with AES, so we use the former.
 typedef void (*block128_f)(const uint8_t in[16], uint8_t out[16],
                            const AES_KEY *key);
+
+// add for sm4
+typedef void (*sm4_block128_f)(const uint8_t in[16], uint8_t out[16],
+                               const SM4_KEY *key);
 
 OPENSSL_INLINE void CRYPTO_xor16(uint8_t out[16], const uint8_t a[16],
                                  const uint8_t b[16]) {
@@ -351,6 +356,14 @@ void CRYPTO_cbc128_decrypt(const uint8_t *in, uint8_t *out, size_t len,
                            const AES_KEY *key, uint8_t ivec[16],
                            block128_f block);
 
+// for sm4
+void CRYPTO_sm4_cbc128_encrypt(const uint8_t *in, uint8_t *out, size_t len,
+                           const SM4_KEY *key, uint8_t ivec[16],
+                           sm4_block128_f block);
+
+void CRYPTO_sm4_cbc128_decrypt(const uint8_t *in, uint8_t *out, size_t len,
+                               const SM4_KEY *key, uint8_t ivec[16],
+                               sm4_block128_f block);
 
 // OFB.
 
