@@ -41,6 +41,8 @@ void EVP_CIPHER_do_all_sorted(void (*callback)(const EVP_CIPHER *cipher,
   callback(EVP_des_ede3_cbc(), "DES-EDE3-CBC", NULL, arg);
   callback(EVP_rc2_cbc(), "RC2-CBC", NULL, arg);
   callback(EVP_rc4(), "RC4", NULL, arg);
+  callback(EVP_sm4_ecb(), "SM4-ECB", NULL, arg);
+  callback(EVP_sm4_cbc(), "SM4-CBC", NULL, arg);
 
   // OpenSSL returns everything twice, the second time in lower case.
   callback(EVP_aes_128_cbc(), "aes-128-cbc", NULL, arg);
@@ -65,6 +67,8 @@ void EVP_CIPHER_do_all_sorted(void (*callback)(const EVP_CIPHER *cipher,
   callback(EVP_des_ede3_cbc(), "des-ede3-cbc", NULL, arg);
   callback(EVP_rc2_cbc(), "rc2-cbc", NULL, arg);
   callback(EVP_rc4(), "rc4", NULL, arg);
+  callback(EVP_sm4_ecb(), "sm4-ecb", NULL, arg);
+  callback(EVP_sm4_cbc(), "sm4-cbc", NULL, arg);
 }
 
 void EVP_MD_do_all_sorted(void (*callback)(const EVP_MD *cipher,

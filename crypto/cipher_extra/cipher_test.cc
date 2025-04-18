@@ -121,6 +121,10 @@ static const EVP_CIPHER *GetCipher(const std::string &name) {
     return EVP_aes_256_gcm();
   } else if (name == "AES-256-OFB") {
     return EVP_aes_256_ofb();
+  } else if (name == "SM4-ECB") {
+    return EVP_sm4_ecb();
+  } else if (name == "SM4-CBC") {
+    return EVP_sm4_cbc();
   }
   return nullptr;
 }
@@ -492,7 +496,11 @@ static void CipherFileTest(FileTest *t) {
     }
   }
 
-  TestCipher(cipher, op, /*padding=*/false, key, iv, plaintext, ciphertext, aad,
+  bool padding = false;
+  if (cipher_str == "SM4-CBC")
+    padding=true;
+
+  TestCipher(cipher, op, padding, key, iv, plaintext, ciphertext, aad,
              tag);
 }
 
