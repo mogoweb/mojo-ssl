@@ -62,6 +62,7 @@ var libraryNames = []string{
 	"HKDF",
 	"TRUST_TOKEN",
 	"USER",
+	"SM2",
 }
 
 // stringList is a map from uint32 -> string which can output data for a sorted

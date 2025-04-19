@@ -476,6 +476,7 @@ static const LIBRARY_NAME kLibraryNames[ERR_NUM_LIBS] = {
     {"HKDF functions", "HKDF", "HKDF_LIB"},
     {"Trust Token functions", "TRUST_TOKEN", "TRUST_TOKEN_LIB"},
     {"User defined functions", "USER", "USER_LIB"},
+    {"SM2 routines", "SM2", "SM2_LIB"},
 };
 
 static const char *err_lib_error_string(uint32_t packed_error) {
