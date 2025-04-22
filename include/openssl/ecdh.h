@@ -106,6 +106,13 @@ OPENSSL_EXPORT int ECDH_compute_key_fips(uint8_t *out, size_t out_len,
                                          const EC_KEY *priv_key);
 
 
+/*-
+ * ECDH Key Derivation Function as defined in ANSI X9.63
+ */
+OPENSSL_EXPORT int ossl_ecdh_kdf_X9_63(unsigned char *out, size_t outlen,
+                        const unsigned char *Z, size_t Zlen,
+                        const unsigned char *sinfo, size_t sinfolen,
+                        const EVP_MD *md);
 #if defined(__cplusplus)
 }  // extern C
 #endif
