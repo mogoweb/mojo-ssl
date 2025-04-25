@@ -53,6 +53,9 @@ static const EC_GROUP *GetCurve(FileTest *t, const char *key) {
   if (curve_name == "P-521") {
     return EC_group_p521();
   }
+  if (curve_name == "sm2p256v1") {
+    return EC_group_sm2();
+  }
 
   t->PrintLine("Unknown curve '%s'", curve_name.c_str());
   return nullptr;

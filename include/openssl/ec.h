@@ -124,6 +124,9 @@ OPENSSL_EXPORT const EC_GROUP *EC_group_p384(void);
 // EC_group_p521 returns an |EC_GROUP| for P-521, also known as secp521r1.
 OPENSSL_EXPORT const EC_GROUP *EC_group_p521(void);
 
+// EC_group_sm2 returns an |EC_GROUP| for sm2, also known as sm2p256v1.
+OPENSSL_EXPORT const EC_GROUP *EC_group_sm2(void);
+
 // EC_GROUP_new_by_curve_name returns the |EC_GROUP| object for the elliptic
 // curve specified by |nid|, or NULL on unsupported NID.  For OpenSSL
 // compatibility, this function returns a non-const pointer which may be passed

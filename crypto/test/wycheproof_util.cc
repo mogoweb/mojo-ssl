@@ -126,6 +126,9 @@ const EC_GROUP *GetWycheproofCurve(FileTest *t, const char *key,
   if (name == "secp521r1") {
     return EC_group_p521();
   }
+  if (name == "sm2p256v1") {
+    return EC_group_sm2();
+  }
   t->PrintLine("Unknown curve '%s'", name.c_str());
   return nullptr;
 }

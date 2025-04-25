@@ -332,6 +332,9 @@ static bssl::UniquePtr<EC_GROUP> GetCurve(FileTest *t, const char *key) {
   if (curve_name == "P-521") {
     return bssl::UniquePtr<EC_GROUP>(const_cast<EC_GROUP *>(EC_group_p521()));
   }
+  if (curve_name == "sm2p256v1") {
+    return bssl::UniquePtr<EC_GROUP>(const_cast<EC_GROUP *>(EC_group_sm2()));
+  }
   if (curve_name == "secp160r1") {
     return NewSecp160r1Group();
   }

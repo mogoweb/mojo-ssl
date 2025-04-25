@@ -26,6 +26,27 @@ import (
 	"strings"
 )
 
+// 定义一条名为 “SM2p256v1” 的曲线
+var SM2p256v1Params = &elliptic.CurveParams{Name: "SM2p256v1"}
+
+func init() {
+	// 素域 P
+	SM2p256v1Params.P, _ = new(big.Int).SetString("FFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000FFFFFFFFFFFFFFFF", 16)
+	// 系数 B
+	SM2p256v1Params.B, _ = new(big.Int).SetString("28E9FA9E9D9F5E344D5A9E4BCF6509A7F39789F515AB8F92DDBCBD414D940E93", 16)
+	// 基点 G 的 X 坐标
+	SM2p256v1Params.Gx, _ = new(big.Int).SetString("32C4AE2C1F1981195F9904466A39C9948FE30BBFF2660BE1715A4589334C74C7", 16)
+	// 基点 G 的 Y 坐标
+	SM2p256v1Params.Gy, _ = new(big.Int).SetString("BC3736A2F4F6779C59BDCEE36B692153D0A9877CC62A474002DF32E52139F0A0", 16)
+	// 子群阶 N
+	SM2p256v1Params.N, _ = new(big.Int).SetString("FFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFF7203DF6B21C6052B53BBF40939D54123", 16)
+	// 位大小
+	SM2p256v1Params.BitSize = 256
+}
+
+// 返回曲线接口
+func SM2p256v1() elliptic.Curve { return SM2p256v1Params }
+
 func main() {
 	if err := writeBuiltinCurves("builtin_curves.h"); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing builtin_curves.h: %s\n", err)
@@ -83,6 +104,9 @@ func writeBuiltinCurves(path string) error {
 	if err := writeCurveData(w, elliptic.P521(), false); err != nil {
 		return err
 	}
+	if err := writeCurveData(w, SM2p256v1(), false); err != nil {
+		return err
+  }
 	return nil
 }
 

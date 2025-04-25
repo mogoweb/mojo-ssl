@@ -80,6 +80,7 @@ static const ec_group_func kAllGroups[] = {
     &EC_group_p256,
     &EC_group_p384,
     &EC_group_p521,
+    &EC_group_sm2,
 };
 
 EC_KEY *EC_KEY_parse_private_key(CBS *cbs, const EC_GROUP *group) {
