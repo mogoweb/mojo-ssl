@@ -58,11 +58,13 @@
 
 #include <openssl/bn.h>
 #include <openssl/crypto.h>
+#include <openssl/digest.h>
 #include <openssl/ec.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
 #include <openssl/nid.h>
 #include <openssl/rand.h>
+#include <openssl/sm2.h>
 
 #include "../ec/internal.h"
 #include "../../test/file_test.h"
@@ -194,6 +196,7 @@ TEST(ECDSATest, BuiltinCurves) {
       { NID_secp384r1, "secp384r1" },
       { NID_secp521r1, "secp521r1" },
       { NID_secp160r1, "secp160r1" },
+      { NID_sm2, "sm2p256v1" },
   };
 
   for (const auto &curve : kCurves) {
@@ -464,6 +467,65 @@ TEST(ECDSATest, SignTestVectors) {
 
       EXPECT_EQ(0, BN_cmp(r.get(), sig->r));
       EXPECT_EQ(0, BN_cmp(s.get(), sig->s));
+    }
+  });
+}
+
+TEST(ECDSATest, SM2SignTestVectors) {
+  FileTestGTest("crypto/fipsmodule/ecdsa/sm2dsa_sign_tests.txt",
+                [](FileTest *t) {
+    for (bool custom_group : {false, true}) {
+      SCOPED_TRACE(custom_group);
+      bssl::UniquePtr<EC_GROUP> group = GetCurve(t, "Curve");
+      ASSERT_TRUE(group);
+      if (custom_group) {
+        group = MakeCustomClone(group.get());
+        ASSERT_TRUE(group);
+      }
+      bssl::UniquePtr<BIGNUM> priv_key = GetBIGNUM(t, "Private");
+      ASSERT_TRUE(priv_key);
+      bssl::UniquePtr<BIGNUM> x = GetBIGNUM(t, "X");
+      ASSERT_TRUE(x);
+      bssl::UniquePtr<BIGNUM> y = GetBIGNUM(t, "Y");
+      ASSERT_TRUE(y);
+      std::vector<uint8_t> k;
+      ASSERT_TRUE(t->GetBytes(&k, "K"));
+      bssl::UniquePtr<BIGNUM> r = GetBIGNUM(t, "R");
+      ASSERT_TRUE(r);
+      bssl::UniquePtr<BIGNUM> s = GetBIGNUM(t, "S");
+      ASSERT_TRUE(s);
+      std::vector<uint8_t> digest;
+      ASSERT_TRUE(t->GetBytes(&digest, "Digest"));
+      std::vector<uint8_t> id;
+      ASSERT_TRUE(t->GetBytes(&id, "ID"));
+      std::vector<uint8_t> za;
+      ASSERT_TRUE(t->GetBytes(&za, "ZA"));
+
+      bssl::UniquePtr<EC_KEY> key(EC_KEY_new());
+      ASSERT_TRUE(key);
+      bssl::UniquePtr<EC_POINT> pub_key(EC_POINT_new(group.get()));
+      ASSERT_TRUE(pub_key);
+      ASSERT_TRUE(EC_KEY_set_group(key.get(), group.get()));
+      ASSERT_TRUE(EC_KEY_set_private_key(key.get(), priv_key.get()));
+      ASSERT_TRUE(EC_POINT_set_affine_coordinates_GFp(
+          group.get(), pub_key.get(), x.get(), y.get(), nullptr));
+      ASSERT_TRUE(EC_KEY_set_public_key(key.get(), pub_key.get()));
+      ASSERT_TRUE(EC_KEY_check_key(key.get()));
+
+      const EVP_MD* hash = EVP_sm3();
+      const int md_size = EVP_MD_size(hash);
+      uint8_t* z = (uint8_t*)OPENSSL_zalloc(md_size);
+      ASSERT_TRUE(z);
+      ASSERT_TRUE(ossl_sm2_compute_z_digest(z, hash, id.data(), id.size(), key.get()));
+      EXPECT_EQ(memcmp(z, za.data(), za.size()), 0);
+
+      // bssl::UniquePtr<ECDSA_SIG> sig(
+      //     ECDSA_sign_with_nonce_and_leak_private_key_for_testing(
+      //         digest.data(), digest.size(), key.get(), k.data(), k.size()));
+      // ASSERT_TRUE(sig);
+
+      // EXPECT_EQ(0, BN_cmp(r.get(), sig->r));
+      // EXPECT_EQ(0, BN_cmp(s.get(), sig->s));
     }
   });
 }

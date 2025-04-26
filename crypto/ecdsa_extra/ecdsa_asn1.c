@@ -57,9 +57,11 @@
 
 #include <openssl/bn.h>
 #include <openssl/bytestring.h>
+#include <openssl/digest.h>
 #include <openssl/err.h>
 #include <openssl/ec_key.h>
 #include <openssl/mem.h>
+#include <openssl/sm2.h>
 
 #include "../bytestring/internal.h"
 #include "../fipsmodule/ec/internal.h"
@@ -119,6 +121,61 @@ int ECDSA_verify(int type, const uint8_t *digest, size_t digest_len,
   }
 
   ret = ECDSA_do_verify(digest, digest_len, s, eckey);
+
+err:
+  OPENSSL_free(der);
+  ECDSA_SIG_free(s);
+  return ret;
+}
+
+int SM2_sign(int type, const uint8_t *digest, size_t digest_len, uint8_t *sig,
+               unsigned int *sig_len, const EC_KEY *eckey) {
+  int ret = 0;
+  ECDSA_SIG *s = ossl_sm2_do_sign(eckey, EVP_sm3(), NULL, 0, digest, digest_len);
+  if (s == NULL) {
+    *sig_len = 0;
+    goto err;
+  }
+
+  CBB cbb;
+  CBB_init_fixed(&cbb, sig, ECDSA_size(eckey));
+  size_t len;
+  if (!ECDSA_SIG_marshal(&cbb, s) ||
+      !CBB_finish(&cbb, NULL, &len)) {
+    OPENSSL_PUT_ERROR(ECDSA, ECDSA_R_ENCODE_ERROR);
+    *sig_len = 0;
+    goto err;
+  }
+  *sig_len = (unsigned)len;
+  ret = 1;
+
+err:
+  ECDSA_SIG_free(s);
+  return ret;
+}
+
+int SM2_verify(int type, const uint8_t *digest, size_t digest_len,
+                 const uint8_t *sig, size_t sig_len, const EC_KEY *eckey) {
+  ECDSA_SIG *s;
+  int ret = 0;
+  uint8_t *der = NULL;
+
+  // Decode the ECDSA signature.
+  s = ECDSA_SIG_from_bytes(sig, sig_len);
+  if (s == NULL) {
+    goto err;
+  }
+
+  // Defend against potential laxness in the DER parser.
+  size_t der_len;
+  if (!ECDSA_SIG_to_bytes(&der, &der_len, s) ||
+      der_len != sig_len || OPENSSL_memcmp(sig, der, sig_len) != 0) {
+    // This should never happen. crypto/bytestring is strictly DER.
+    OPENSSL_PUT_ERROR(ECDSA, ERR_R_INTERNAL_ERROR);
+    goto err;
+  }
+
+  ret = ossl_sm2_do_verify(eckey, EVP_sm3(), s, NULL, 0, digest, digest_len);
 
 err:
   OPENSSL_free(der);

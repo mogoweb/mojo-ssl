@@ -11,6 +11,7 @@
 
 #include <openssl/bn.h>
 #include <openssl/ecdh.h>
+#include <openssl/ecdsa.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/mem.h>
@@ -46,6 +47,8 @@ int ossl_sm2_compute_z_digest(uint8_t *out,
     OPENSSL_PUT_ERROR(SM2, ERR_R_MALLOC_FAILURE);
     goto done;
   }
+
+  BN_CTX_start(ctx);
 
   p = BN_CTX_get(ctx);
   a = BN_CTX_get(ctx);
@@ -134,6 +137,8 @@ int ossl_sm2_compute_z_digest(uint8_t *out,
   rc = 1;
 
  done:
+  BN_CTX_end(ctx);
+
   OPENSSL_free(buf);
   BN_CTX_free(ctx);
   EVP_MD_CTX_free(hash);
@@ -278,14 +283,14 @@ static ECDSA_SIG *sm2_sig_gen(const EC_KEY *key, const BIGNUM *e)
     if (BN_is_zero(s))
       continue;
 
-    // sig = ECDSA_SIG_new();
-    // if (sig == NULL) {
-    //   OPENSSL_PUT_ERROR(SM2, ERR_R_MALLOC_FAILURE);
-    //   goto done;
-    // }
+    sig = ECDSA_SIG_new();
+    if (sig == NULL) {
+      OPENSSL_PUT_ERROR(SM2, ERR_R_MALLOC_FAILURE);
+      goto done;
+    }
 
-    // /* takes ownership of r and s */
-    // ECDSA_SIG_set0(sig, r, s);
+    /* takes ownership of r and s */
+    ECDSA_SIG_set0(sig, r, s);
     break;
   }
 
@@ -338,7 +343,7 @@ static int sm2_sig_verify(const EC_KEY *key, const ECDSA_SIG *sig,
     * B7: calculate R=(e'+x1') modn, verification pass if yes, otherwise failed
     */
 
-  // ECDSA_SIG_get0(sig, &r, &s);
+  ECDSA_SIG_get0(sig, &r, &s);
 
   if (BN_cmp(r, BN_value_one()) < 0
       || BN_cmp(s, BN_value_one()) < 0
@@ -429,7 +434,7 @@ int ossl_sm2_internal_sign(const unsigned char *dgst, int dgstlen,
 {
   BIGNUM *e = NULL;
   ECDSA_SIG *s = NULL;
-  // int sigleni;
+  int sigleni;
   int ret = -1;
 
   e = BN_bin2bn(dgst, dgstlen, NULL);
@@ -444,17 +449,17 @@ int ossl_sm2_internal_sign(const unsigned char *dgst, int dgstlen,
     goto done;
   }
 
-  // sigleni = i2d_ECDSA_SIG(s, &sig);
-  // if (sigleni < 0) {
-  //   OPENSSL_PUT_ERROR(SM2, ERR_R_INTERNAL_ERROR);
-  //   goto done;
-  // }
-  // *siglen = (unsigned int)sigleni;
+  sigleni = i2d_ECDSA_SIG(s, &sig);
+  if (sigleni < 0) {
+    OPENSSL_PUT_ERROR(SM2, ERR_R_INTERNAL_ERROR);
+    goto done;
+  }
+  *siglen = (unsigned int)sigleni;
 
   ret = 1;
 
  done:
-  // ECDSA_SIG_free(s);
+  ECDSA_SIG_free(s);
   BN_free(e);
   return ret;
 }
@@ -465,26 +470,26 @@ int ossl_sm2_internal_verify(const unsigned char *dgst, int dgstlen,
 {
   ECDSA_SIG *s = NULL;
   BIGNUM *e = NULL;
-  // const unsigned char *p = sig;
+  const unsigned char *p = sig;
   unsigned char *der = NULL;
-  // int derlen = -1;
+  int derlen = -1;
   int ret = -1;
 
-  // s = ECDSA_SIG_new();
+  s = ECDSA_SIG_new();
   if (s == NULL) {
     OPENSSL_PUT_ERROR(SM2, ERR_R_MALLOC_FAILURE);
     goto done;
   }
-  // if (d2i_ECDSA_SIG(&s, &p, sig_len) == NULL) {
-  //   OPENSSL_PUT_ERROR(SM2, SM2_R_INVALID_ENCODING);
-  //   goto done;
-  // }
+  if (d2i_ECDSA_SIG(&s, &p, sig_len) == NULL) {
+    OPENSSL_PUT_ERROR(SM2, SM2_R_INVALID_ENCODING);
+    goto done;
+  }
   /* Ensure signature uses DER and doesn't have trailing garbage */
-  // derlen = i2d_ECDSA_SIG(s, &der);
-  // if (derlen != sig_len || memcmp(sig, der, derlen) != 0) {
-  //   OPENSSL_PUT_ERROR(SM2, SM2_R_INVALID_ENCODING);
-  //   goto done;
-  // }
+  derlen = i2d_ECDSA_SIG(s, &der);
+  if (derlen != sig_len || memcmp(sig, der, derlen) != 0) {
+    OPENSSL_PUT_ERROR(SM2, SM2_R_INVALID_ENCODING);
+    goto done;
+  }
 
   e = BN_bin2bn(dgst, dgstlen, NULL);
   if (e == NULL) {
@@ -497,6 +502,6 @@ int ossl_sm2_internal_verify(const unsigned char *dgst, int dgstlen,
  done:
   OPENSSL_free(der);
   BN_free(e);
-  // ECDSA_SIG_free(s);
+  ECDSA_SIG_free(s);
   return ret;
 }

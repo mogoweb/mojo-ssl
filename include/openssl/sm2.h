@@ -17,16 +17,20 @@
 
 #include <openssl/ec.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 int ossl_sm2_key_private_check(const EC_KEY *eckey);
 
 /* The default user id as specified in GM/T 0009-2012 */
 #define SM2_DEFAULT_USERID "1234567812345678"
 
-int ossl_sm2_compute_z_digest(uint8_t *out,
-                              const EVP_MD *digest,
-                              const uint8_t *id,
-                              size_t id_len,
-                              const EC_KEY *key);
+OPENSSL_EXPORT int ossl_sm2_compute_z_digest(uint8_t *out,
+                                             const EVP_MD *digest,
+                                             const uint8_t *id,
+                                             size_t id_len,
+                                             const EC_KEY *key);
 
 /*
  * SM2 signature operation. Computes Z and then signs H(Z || msg) using SM2
@@ -87,6 +91,10 @@ int SM2_compute_key(void *out, size_t outlen, int initiator,
                     const EC_KEY *peer_pub_key, const EC_KEY *self_eckey,
                     const EVP_MD *md, BN_CTX *libctx,
                     const char *propq);
+
+#if defined(__cplusplus)
+}  // extern C
+#endif
 
 /*
  * SM2 reason codes.

@@ -122,8 +122,14 @@ static int pkey_ec_sign(EVP_PKEY_CTX *ctx, uint8_t *sig, size_t *siglen,
   }
 
   unsigned int sltmp;
-  if (!ECDSA_sign(0, tbs, tbslen, sig, &sltmp, ec)) {
-    return 0;
+  if (EC_KEY_is_sm2(ec)) {
+    if (!SM2_sign(0, tbs, tbslen, sig, &sltmp, ec)) {
+      return 0;
+    }
+  } else {
+    if (!ECDSA_sign(0, tbs, tbslen, sig, &sltmp, ec)) {
+      return 0;
+    }
   }
   *siglen = (size_t)sltmp;
   return 1;
@@ -132,7 +138,11 @@ static int pkey_ec_sign(EVP_PKEY_CTX *ctx, uint8_t *sig, size_t *siglen,
 static int pkey_ec_verify(EVP_PKEY_CTX *ctx, const uint8_t *sig, size_t siglen,
                           const uint8_t *tbs, size_t tbslen) {
   const EC_KEY *ec_key = ctx->pkey->pkey;
-  return ECDSA_verify(0, tbs, tbslen, sig, siglen, ec_key);
+  if (EC_KEY_is_sm2(ec_key)) {
+    return SM2_verify(0, tbs, tbslen, sig, siglen, ec_key);
+  } else {
+    return ECDSA_verify(0, tbs, tbslen, sig, siglen, ec_key);
+  }
 }
 
 static int pkey_ec_derive(EVP_PKEY_CTX *ctx, uint8_t *key,
@@ -173,7 +183,7 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2) {
       int md_type = EVP_MD_type(md);
       if (md_type != NID_sha1 && md_type != NID_sha224 &&
           md_type != NID_sha256 && md_type != NID_sha384 &&
-          md_type != NID_sha512) {
+          md_type != NID_sha512 && md_type != NID_sm3) {
         OPENSSL_PUT_ERROR(EVP, EVP_R_INVALID_DIGEST_TYPE);
         return 0;
       }

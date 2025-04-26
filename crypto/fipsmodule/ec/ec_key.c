@@ -75,6 +75,7 @@
 #include <openssl/err.h>
 #include <openssl/ex_data.h>
 #include <openssl/mem.h>
+#include <openssl/sm2.h>
 #include <openssl/thread.h>
 
 #include "internal.h"
@@ -478,6 +479,21 @@ size_t EC_KEY_priv2buf(const EC_KEY *key, uint8_t **out_buf) {
 
   *out_buf = buf;
   return len;
+}
+
+int EC_KEY_is_sm2(const EC_KEY *key) {
+  if (!key)
+    return 0;
+
+  const EC_GROUP* group = EC_KEY_get0_group(key);
+  if (group) {
+    return 0;
+  }
+
+  if (EC_GROUP_get_curve_name(group) == NID_sm2)
+    return 1;
+
+  return 0;
 }
 
 int EC_KEY_generate_key(EC_KEY *key) {

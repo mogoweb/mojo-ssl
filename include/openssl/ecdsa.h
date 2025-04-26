@@ -96,6 +96,29 @@ OPENSSL_EXPORT int ECDSA_verify(int type, const uint8_t *digest,
 // returns zero if |key| is NULL or if it doesn't have a group set.
 OPENSSL_EXPORT size_t ECDSA_size(const EC_KEY *key);
 
+// SM2_sign signs |digest_len| bytes from |digest| with |key| and writes the
+// resulting signature to |sig|, which must have |ECDSA_size(key)| bytes of
+// space. On successful exit, |*sig_len| is set to the actual number of bytes
+// written. The |type| argument should be zero. It returns one on success and
+// zero otherwise.
+//
+// WARNING: |digest| must be the output of some hash function on the data to be
+// signed. Passing unhashed inputs will not result in a secure signature scheme.
+OPENSSL_EXPORT int SM2_sign(int type, const uint8_t *digest,
+                            size_t digest_len, uint8_t *sig,
+                            unsigned int *sig_len, const EC_KEY *key);
+
+// SM2_verify verifies that |sig_len| bytes from |sig| constitute a valid
+// signature by |key| of |digest|. (The |type| argument should be zero.) It
+// returns one on success or zero if the signature is invalid or an error
+// occurred.
+//
+// WARNING: |digest| must be the output of some hash function on the data to be
+// verified. Passing unhashed inputs will not result in a secure signature
+// scheme.
+OPENSSL_EXPORT int SM2_verify(int type, const uint8_t *digest,
+                              size_t digest_len, const uint8_t *sig,
+                              size_t sig_len, const EC_KEY *key);
 
 // Low-level signing and verification.
 //

@@ -212,6 +212,9 @@ OPENSSL_EXPORT size_t EC_KEY_priv2oct(const EC_KEY *key, uint8_t *out,
 // |OPENSSL_free| when done.
 OPENSSL_EXPORT size_t EC_KEY_priv2buf(const EC_KEY *key, uint8_t **out_buf);
 
+// check key if SM2 key
+OPENSSL_EXPORT int EC_KEY_is_sm2(const EC_KEY *key);
+
 
 // Key generation.
 
