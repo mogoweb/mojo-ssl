@@ -92,6 +92,11 @@ int SM2_compute_key(void *out, size_t outlen, int initiator,
                     const EVP_MD *md, BN_CTX *libctx,
                     const char *propq);
 
+BIGNUM *sm2_compute_msg_hash(const EVP_MD *digest,
+                             const EC_KEY *key,
+                             const uint8_t *id,
+                             const size_t id_len,
+                             const uint8_t *msg, size_t msg_len);
 #if defined(__cplusplus)
 }  // extern C
 #endif

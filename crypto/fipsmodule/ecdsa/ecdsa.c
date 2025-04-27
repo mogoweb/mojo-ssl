@@ -267,6 +267,62 @@ static ECDSA_SIG *ecdsa_sign_impl(const EC_GROUP *group, int *out_retry,
   return ret;
 }
 
+// just for test, same as sm2_sig_gen, but k is given.
+static ECDSA_SIG *sm2_sign_impl(const EC_KEY *key, const BIGNUM *k, const BIGNUM *e) {
+  const BIGNUM *dA = EC_KEY_get0_private_key(key);
+  const EC_GROUP *group = EC_KEY_get0_group(key);
+  const BIGNUM *order = EC_GROUP_get0_order(group);
+  ECDSA_SIG *sig = NULL;
+  EC_POINT *kG = NULL;
+  BN_CTX *ctx = NULL;
+  BIGNUM *r = NULL;
+  BIGNUM *s = NULL;
+  BIGNUM *x1 = NULL;
+  BIGNUM *tmp = NULL;
+
+  kG = EC_POINT_new(group);
+  ctx = BN_CTX_new();
+
+  BN_CTX_start(ctx);
+  x1 = BN_CTX_get(ctx);
+  tmp = BN_CTX_get(ctx);
+
+  r = BN_new();
+  s = BN_new();
+
+  if (!EC_POINT_mul(group, kG, k, NULL, NULL, ctx)
+      || !EC_POINT_get_affine_coordinates(group, kG, x1, NULL,
+                                          ctx)
+      || !BN_mod_add(r, e, x1, order, ctx)) {
+    OPENSSL_PUT_ERROR(SM2, ERR_R_INTERNAL_ERROR);
+    goto done;
+  }
+
+  if (!BN_add(s, dA, BN_value_one())
+      || !BN_mod_inverse(s, s, order, ctx)
+      || !BN_mod_mul(tmp, dA, r, order, ctx)
+      || !BN_sub(tmp, k, tmp)
+      || !BN_mod_mul(s, s, tmp, order, ctx)) {
+    OPENSSL_PUT_ERROR(SM2, ERR_R_BN_LIB);
+    goto done;
+  }
+
+  sig = ECDSA_SIG_new();
+
+  ECDSA_SIG_set0(sig, r, s);
+
+ done:
+  BN_CTX_end(ctx);
+  if (sig == NULL) {
+    BN_free(r);
+    BN_free(s);
+  }
+
+  BN_CTX_free(ctx);
+  EC_POINT_free(kG);
+  return sig;
+}
+
 ECDSA_SIG *ecdsa_sign_with_nonce_for_known_answer_test(const uint8_t *digest,
                                                        size_t digest_len,
                                                        const EC_KEY *eckey,
@@ -289,8 +345,15 @@ ECDSA_SIG *ecdsa_sign_with_nonce_for_known_answer_test(const uint8_t *digest,
     return NULL;
   }
   int retry_ignored;
-  return ecdsa_sign_impl(group, &retry_ignored, priv_key, &k, digest,
-                         digest_len);
+  if (EC_KEY_is_sm2(eckey)) {
+    BIGNUM *bnk = BN_bin2bn(nonce, nonce_len, NULL);
+    BIGNUM *e = BN_bin2bn(digest, digest_len, NULL);
+    return sm2_sign_impl(eckey, bnk, e);
+  }
+  else {
+    return ecdsa_sign_impl(group, &retry_ignored, priv_key, &k, digest,
+                          digest_len);
+  }
 }
 
 // This function is only exported for testing and is not called in production

@@ -474,58 +474,67 @@ TEST(ECDSATest, SignTestVectors) {
 TEST(ECDSATest, SM2SignTestVectors) {
   FileTestGTest("crypto/fipsmodule/ecdsa/sm2dsa_sign_tests.txt",
                 [](FileTest *t) {
-    for (bool custom_group : {false, true}) {
-      SCOPED_TRACE(custom_group);
-      bssl::UniquePtr<EC_GROUP> group = GetCurve(t, "Curve");
-      ASSERT_TRUE(group);
-      if (custom_group) {
-        group = MakeCustomClone(group.get());
-        ASSERT_TRUE(group);
-      }
-      bssl::UniquePtr<BIGNUM> priv_key = GetBIGNUM(t, "Private");
-      ASSERT_TRUE(priv_key);
-      bssl::UniquePtr<BIGNUM> x = GetBIGNUM(t, "X");
-      ASSERT_TRUE(x);
-      bssl::UniquePtr<BIGNUM> y = GetBIGNUM(t, "Y");
-      ASSERT_TRUE(y);
-      std::vector<uint8_t> k;
-      ASSERT_TRUE(t->GetBytes(&k, "K"));
-      bssl::UniquePtr<BIGNUM> r = GetBIGNUM(t, "R");
-      ASSERT_TRUE(r);
-      bssl::UniquePtr<BIGNUM> s = GetBIGNUM(t, "S");
-      ASSERT_TRUE(s);
-      std::vector<uint8_t> digest;
-      ASSERT_TRUE(t->GetBytes(&digest, "Digest"));
-      std::vector<uint8_t> id;
-      ASSERT_TRUE(t->GetBytes(&id, "ID"));
-      std::vector<uint8_t> za;
-      ASSERT_TRUE(t->GetBytes(&za, "ZA"));
+    bssl::UniquePtr<EC_GROUP> group = GetCurve(t, "Curve");
+    ASSERT_TRUE(group);
+    ASSERT_EQ(EC_GROUP_get_curve_name(group.get()), NID_sm2);
+    bssl::UniquePtr<BIGNUM> priv_key = GetBIGNUM(t, "Private");
+    ASSERT_TRUE(priv_key);
+    bssl::UniquePtr<BIGNUM> x = GetBIGNUM(t, "X");
+    ASSERT_TRUE(x);
+    bssl::UniquePtr<BIGNUM> y = GetBIGNUM(t, "Y");
+    ASSERT_TRUE(y);
+    std::vector<uint8_t> k;
+    ASSERT_TRUE(t->GetBytes(&k, "K"));
+    bssl::UniquePtr<BIGNUM> r = GetBIGNUM(t, "R");
+    ASSERT_TRUE(r);
+    bssl::UniquePtr<BIGNUM> s = GetBIGNUM(t, "S");
+    ASSERT_TRUE(s);
+    std::vector<uint8_t> digest;
+    ASSERT_TRUE(t->GetBytes(&digest, "Digest"));
+    std::vector<uint8_t> id;
+    ASSERT_TRUE(t->GetBytes(&id, "ID"));
+    std::vector<uint8_t> za;
+    ASSERT_TRUE(t->GetBytes(&za, "ZA"));
+    bssl::UniquePtr<BIGNUM> e = GetBIGNUM(t, "e");
+    ASSERT_TRUE(e);
 
-      bssl::UniquePtr<EC_KEY> key(EC_KEY_new());
-      ASSERT_TRUE(key);
-      bssl::UniquePtr<EC_POINT> pub_key(EC_POINT_new(group.get()));
-      ASSERT_TRUE(pub_key);
-      ASSERT_TRUE(EC_KEY_set_group(key.get(), group.get()));
-      ASSERT_TRUE(EC_KEY_set_private_key(key.get(), priv_key.get()));
-      ASSERT_TRUE(EC_POINT_set_affine_coordinates_GFp(
-          group.get(), pub_key.get(), x.get(), y.get(), nullptr));
-      ASSERT_TRUE(EC_KEY_set_public_key(key.get(), pub_key.get()));
-      ASSERT_TRUE(EC_KEY_check_key(key.get()));
+    bssl::UniquePtr<EC_KEY> key(EC_KEY_new());
+    ASSERT_TRUE(key);
+    bssl::UniquePtr<EC_POINT> pub_key(EC_POINT_new(group.get()));
+    ASSERT_TRUE(pub_key);
+    ASSERT_TRUE(EC_KEY_set_group(key.get(), group.get()));
+    ASSERT_TRUE(EC_KEY_set_private_key(key.get(), priv_key.get()));
+    ASSERT_TRUE(EC_POINT_set_affine_coordinates_GFp(
+        group.get(), pub_key.get(), x.get(), y.get(), nullptr));
+    ASSERT_TRUE(EC_KEY_set_public_key(key.get(), pub_key.get()));
+    ASSERT_TRUE(EC_KEY_check_key(key.get()));
+    ASSERT_TRUE(EC_KEY_is_sm2(key.get()));
 
-      const EVP_MD* hash = EVP_sm3();
-      const int md_size = EVP_MD_size(hash);
-      uint8_t* z = (uint8_t*)OPENSSL_zalloc(md_size);
-      ASSERT_TRUE(z);
-      ASSERT_TRUE(ossl_sm2_compute_z_digest(z, hash, id.data(), id.size(), key.get()));
-      EXPECT_EQ(memcmp(z, za.data(), za.size()), 0);
+    const EVP_MD* hash = EVP_sm3();
+    const int md_size = EVP_MD_size(hash);
+    uint8_t* z = (uint8_t*)OPENSSL_zalloc(md_size);
+    ASSERT_TRUE(z);
+    ASSERT_TRUE(ossl_sm2_compute_z_digest(z, hash, id.data(), id.size(), key.get()));
+    EXPECT_EQ(memcmp(z, za.data(), za.size()), 0);
 
-      // bssl::UniquePtr<ECDSA_SIG> sig(
-      //     ECDSA_sign_with_nonce_and_leak_private_key_for_testing(
-      //         digest.data(), digest.size(), key.get(), k.data(), k.size()));
-      // ASSERT_TRUE(sig);
+    BIGNUM *he = sm2_compute_msg_hash(hash, key.get(), id.data(), id.size(), digest.data(), digest.size());
+    EXPECT_EQ(0, BN_cmp(e.get(), he));
 
-      // EXPECT_EQ(0, BN_cmp(r.get(), sig->r));
-      // EXPECT_EQ(0, BN_cmp(s.get(), sig->s));
-    }
+    int p_bytes = BN_num_bytes(he);
+    uint8_t *buf = (uint8_t*)OPENSSL_zalloc(p_bytes);
+
+    EXPECT_TRUE(BN_bn2binpad(he, buf, p_bytes));
+    bssl::UniquePtr<ECDSA_SIG> sig(
+        ECDSA_sign_with_nonce_and_leak_private_key_for_testing(
+            buf, p_bytes, key.get(), k.data(), k.size()));
+    ASSERT_TRUE(sig);
+
+    EXPECT_EQ(0, BN_cmp(r.get(), sig->r));
+    EXPECT_EQ(0, BN_cmp(s.get(), sig->s));
+
+    // verify
+    ASSERT_TRUE(ossl_sm2_do_verify(key.get(), hash, sig.get(), id.data(), id.size(), digest.data(), digest.size()));
+    uint8_t id_no[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    ASSERT_FALSE(ossl_sm2_do_verify(key.get(), hash, sig.get(), id_no, sizeof(id_no), digest.data(), digest.size()));
   });
 }

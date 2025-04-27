@@ -145,11 +145,11 @@ int ossl_sm2_compute_z_digest(uint8_t *out,
   return rc;
 }
 
-static BIGNUM *sm2_compute_msg_hash(const EVP_MD *digest,
-                                    const EC_KEY *key,
-                                    const uint8_t *id,
-                                    const size_t id_len,
-                                    const uint8_t *msg, size_t msg_len)
+BIGNUM *sm2_compute_msg_hash(const EVP_MD *digest,
+                             const EC_KEY *key,
+                             const uint8_t *id,
+                             const size_t id_len,
+                             const uint8_t *msg, size_t msg_len)
 {
   EVP_MD_CTX *hash = EVP_MD_CTX_new();
   const int md_size = EVP_MD_size(digest);
@@ -271,7 +271,7 @@ static ECDSA_SIG *sm2_sig_gen(const EC_KEY *key, const BIGNUM *e)
       continue;
 
     if (!BN_add(s, dA, BN_value_one())
-        /*|| !ossl_ec_group_do_inverse_ord(group, s, s, ctx)*/
+        || !BN_mod_inverse(s, s, order, ctx)
         || !BN_mod_mul(tmp, dA, r, order, ctx)
         || !BN_sub(tmp, k, tmp)
         || !BN_mod_mul(s, s, tmp, order, ctx)) {
@@ -295,6 +295,7 @@ static ECDSA_SIG *sm2_sig_gen(const EC_KEY *key, const BIGNUM *e)
   }
 
  done:
+  BN_CTX_end(ctx);
   if (sig == NULL) {
     BN_free(r);
     BN_free(s);
@@ -378,6 +379,7 @@ static int sm2_sig_verify(const EC_KEY *key, const ECDSA_SIG *sig,
     ret = 1;
 
  done:
+  BN_CTX_end(ctx);
   EC_POINT_free(pt);
   BN_CTX_free(ctx);
   return ret;

@@ -486,7 +486,7 @@ int EC_KEY_is_sm2(const EC_KEY *key) {
     return 0;
 
   const EC_GROUP* group = EC_KEY_get0_group(key);
-  if (group) {
+  if (!group) {
     return 0;
   }
 
