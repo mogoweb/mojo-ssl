@@ -972,3 +972,6 @@ sm4_cfb8		981
 sm4_ctr		982
 sm4_gcm		983
 sm4_ccm		984
+kx_sm2		985
+kx_sm2dhe		986
+auth_sm2		987

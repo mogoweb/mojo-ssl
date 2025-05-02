@@ -1348,6 +1348,10 @@ secg-scheme 14 3 : dhSinglePass-cofactorDH-sha512kdf-scheme
  : KxECDHE : kx-ecdhe
  : KxPSK : kx-psk
 
+# NIDs for NTLS cipher suite key exchanges.
+ : KxSM2 : kx-sm2
+ : KxSM2DHE : kx-sm2dhe
+
 # NIDs for TLS 1.2 cipher suite authentication types.
  : AuthRSA : auth-rsa
  : AuthECDSA : auth-ecdsa
@@ -1356,6 +1360,9 @@ secg-scheme 14 3 : dhSinglePass-cofactorDH-sha512kdf-scheme
 # TLS 1.3 cipher suites do not specify key exchange or authentication.
  : KxANY : kx-any
  : AuthANY : auth-any
+
+# NIDs for NTLS cipher suite authentication types.
+ : AuthSM2 : auth-sm2
 
  : HKDF : hkdf
 

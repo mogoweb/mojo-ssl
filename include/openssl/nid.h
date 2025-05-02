@@ -4352,6 +4352,18 @@ extern "C" {
 #define NID_sm4_ccm 984
 #define OBJ_sm4_ccm 1L, 2L, 156L, 10197L, 1L, 104L, 9L
 
+#define SN_kx_sm2 "KxSM2"
+#define LN_kx_sm2 "kx-sm2"
+#define NID_kx_sm2 985
+
+#define SN_kx_sm2dhe "KxSM2DHE"
+#define LN_kx_sm2dhe "kx-sm2dhe"
+#define NID_kx_sm2dhe 986
+
+#define SN_auth_sm2 "AuthSM2"
+#define LN_auth_sm2 "auth-sm2"
+#define NID_auth_sm2 987
+
 
 #if defined(__cplusplus)
 } /* extern C */
