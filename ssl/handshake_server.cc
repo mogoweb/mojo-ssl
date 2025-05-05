@@ -221,6 +221,10 @@ static bool negotiate_version(SSL_HANDSHAKE *hs, uint8_t *out_alert,
         0xfe, 0xff,  // DTLS 1.0
     };
 
+    static const uint8_t kNTLSVersions[] = {
+        0x01, 0x01,
+    };
+
     size_t versions_len = 0;
     if (SSL_is_dtls(ssl)) {
       if (client_hello->version <= DTLS1_2_VERSION) {
@@ -237,7 +241,11 @@ static bool negotiate_version(SSL_HANDSHAKE *hs, uint8_t *out_alert,
       } else if (client_hello->version >= TLS1_VERSION) {
         versions_len = 2;
       }
-      versions = MakeConstSpan(kTLSVersions).last(versions_len);
+      if (client_hello->version == NTLS_VERSION) {
+        versions = MakeConstSpan(kNTLSVersions).last(2);
+      } else {
+        versions = MakeConstSpan(kTLSVersions).last(versions_len);
+      }
     }
   }
 

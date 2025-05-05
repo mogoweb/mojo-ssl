@@ -175,7 +175,7 @@ int SM2_verify(int type, const uint8_t *digest, size_t digest_len,
     goto err;
   }
 
-  ret = ossl_sm2_do_verify(eckey, EVP_sm3(), s, NULL, 0, digest, digest_len);
+  ret = ossl_sm2_internal_verify(digest, digest_len, der, der_len, eckey);
 
 err:
   OPENSSL_free(der);

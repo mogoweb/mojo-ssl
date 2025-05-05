@@ -36,6 +36,7 @@
 #include <openssl/err.h>
 #include <openssl/hmac.h>
 #include <openssl/hpke.h>
+#include <openssl/ntls.h>
 #include <openssl/pem.h>
 #include <openssl/sha.h>
 #include <openssl/ssl.h>
@@ -1032,6 +1033,7 @@ TEST(SSLTest, DefaultVersion) {
   ExpectDefaultVersion(DTLS1_VERSION, DTLS1_2_VERSION, &DTLS_method);
   ExpectDefaultVersion(DTLS1_VERSION, DTLS1_VERSION, &DTLSv1_method);
   ExpectDefaultVersion(DTLS1_2_VERSION, DTLS1_2_VERSION, &DTLSv1_2_method);
+  ExpectDefaultVersion(NTLS_VERSION, NTLS_VERSION, &NTLS_method);
 }
 
 TEST(SSLTest, CipherProperties) {
@@ -1160,6 +1162,15 @@ TEST(SSLTest, CipherProperties) {
           NID_kx_any,
           NID_auth_any,
           NID_sha256,
+      },
+      {
+          NTLS_CK_ECDHE_SM2_SM4_CBC_SM3,
+          "NTLS_ECDHE_SM2_SM4_CBC_SM3",
+          NID_sm4_cbc,
+          NID_sm3,
+          NID_kx_sm2dhe,
+          NID_auth_sm2,
+          NID_sm3,
       },
   };
 
@@ -3367,6 +3378,21 @@ TEST(SSLTest, ClientHello) {
         0x00, 0x00, 0x0d, 0x00, 0x14, 0x00, 0x12, 0x04, 0x03, 0x08, 0x04, 0x04,
         0x01, 0x05, 0x03, 0x08, 0x05, 0x05, 0x01, 0x08, 0x06, 0x06, 0x01, 0x02,
         0x01}},
+      {NTLS_VERSION,
+       {0x16, 0x01, 0x01, 0x00, 0x2f, // Record Layer: 0x16=Handshake, ver=0x0101 (NTLS), len=0x001a (47 bytes)
+        0x01, 0x00, 0x00, 0x2b,       // Handshake Layer: 0x01=ClientHello, len=0x002b (43 bytes)
+        0x01, 0x01,                   // client_version = NTLS (0x0101)
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,    // Random[0..7] = 0
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,    // Random[8..15]=0
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,    // Random[16..23]=0
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,    // Random[24..31]=0
+        0x00,                         // session_id_length = 0
+        0x00, 0x02,                   // cipher_suites_length = 2 bytes
+        0xe0, 0x11,                   // ECDHE_SM2_SM4_CBC_SM3
+        0x01,                         // compression_methods_length = 1
+        0x00,                         // null
+        0x00, 0x00,                   // extensions_length = 0
+       }},
       // TODO(davidben): Add a change detector for TLS 1.3 once the spec and our
       // implementation has settled enough that it won't change.
   };
@@ -3375,6 +3401,10 @@ TEST(SSLTest, ClientHello) {
     SCOPED_TRACE(t.max_version);
 
     bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
+    if (t.max_version == NTLS_VERSION) {
+      ctx.reset(SSL_CTX_new(NTLS_method()));
+    }
+    
     ASSERT_TRUE(ctx);
     // Our default cipher list varies by CPU capabilities, so manually place the
     // ChaCha20 ciphers in front.
@@ -9205,7 +9235,7 @@ TEST(SSLTest, NameLists) {
     size_t (*func)(const char **, size_t);
     std::vector<std::string> expected;
   } kTests[] = {
-      {SSL_get_all_version_names, {"TLSv1.3", "DTLSv1.2", "unknown"}},
+      {SSL_get_all_version_names, {"TLSv1.3", "DTLSv1.2", "NTLS", "unknown"}},
       {SSL_get_all_standard_cipher_names,
        {"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", "TLS_AES_128_GCM_SHA256"}},
       {SSL_get_all_cipher_names,

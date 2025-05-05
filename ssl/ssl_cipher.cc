@@ -461,6 +461,18 @@ static constexpr SSL_CIPHER kCiphers[] = {
      SSL_HANDSHAKE_MAC_SHA256,
     },
 
+    // Cipher NTLS
+    {
+     NTLS_TXT_SM2DHE_WITH_SM4_SM3,
+     NTLS_GB_ECDHE_SM2_SM4_CBC_SM3,   // name of GB/T 38636-2020
+     NTLS_CK_ECDHE_SM2_SM4_CBC_SM3,
+     SSL_kSM2DHE,
+     SSL_aSM2,
+     SSL_SM4,
+     SSL_SM3,
+     SSL_HANDSHAKE_MAC_SM3,
+    },
+
 };
 
 Span<const SSL_CIPHER> AllCiphers() {
@@ -569,6 +581,15 @@ static const CIPHER_ALIAS kCipherAliases[] = {
     // ciphers. These should be removed after 2018-05-14.
     {"SHA256", 0, 0, 0, 0, 0},
     {"SHA384", 0, 0, 0, 0, 0},
+
+    // NTLS
+    {"NTLS", ~0u, ~0u, ~0u, ~0u, NTLS_VERSION},
+    {"kSM2", SSL_kSM2, ~0u, ~0u, ~0u, 0},
+    {"ECDHE-SM2-WITH-SM4-SM3", SSL_kSM2DHE, ~0u, ~0u, ~0u, 0},
+    {"aSM2", ~0u, SSL_aSM2, ~0u, ~0u, 0},
+    {"SM2", ~0u, SSL_kSM2, ~0u, ~0u, 0},
+    {"SM4", ~0u, ~0u, SSL_SM4, ~0u, 0},
+    {"SM3", ~0u, ~0u, ~0u, SSL_SM3, 0},
 };
 
 static const size_t kCipherAliasesLen = OPENSSL_ARRAY_SIZE(kCipherAliases);
@@ -650,6 +671,15 @@ bool ssl_cipher_get_evp_aead(const EVP_AEAD **out_aead,
     }
 
     *out_mac_secret_len = SHA256_DIGEST_LENGTH;
+  } else if (cipher->algorithm_mac == SSL_SM3) {
+    if (cipher->algorithm_enc == SSL_SM4) 
+    {
+      *out_aead = EVP_aead_sm4_cbc_sm3_tls();
+      *out_mac_secret_len = 32;
+      *out_fixed_iv_len = 16;
+    } else {
+      return false;
+    }
   } else {
     return false;
   }
@@ -666,6 +696,8 @@ const EVP_MD *ssl_get_handshake_digest(uint16_t version,
       return EVP_sha256();
     case SSL_HANDSHAKE_MAC_SHA384:
       return EVP_sha384();
+    case SSL_HANDSHAKE_MAC_SM3:
+      return EVP_sm3();
     default:
       assert(0);
       return NULL;
@@ -1169,11 +1201,15 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
       TLS1_CK_PSK_WITH_AES_256_CBC_SHA & 0xffff,
       SSL3_CK_RSA_DES_192_CBC3_SHA & 0xffff,
   };
+  static const uint16_t kNTLSCiphers[] = {
+      NTLS_CK_ECDHE_SM2_SM4_CBC_SM3 & 0xffff,
+  };
 
   // Set up a linked list of ciphers.
   CIPHER_ORDER co_list[OPENSSL_ARRAY_SIZE(kAESCiphers) +
                        OPENSSL_ARRAY_SIZE(kChaChaCiphers) +
-                       OPENSSL_ARRAY_SIZE(kLegacyCiphers)];
+                       OPENSSL_ARRAY_SIZE(kLegacyCiphers) +
+                       OPENSSL_ARRAY_SIZE(kNTLSCiphers)];
   for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(co_list); i++) {
     co_list[i].next =
         i + 1 < OPENSSL_ARRAY_SIZE(co_list) ? &co_list[i + 1] : nullptr;
@@ -1206,6 +1242,10 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
     }
   }
   for (uint16_t id : kLegacyCiphers) {
+    co_list[num++].cipher = SSL_get_cipher_by_value(id);
+    assert(co_list[num - 1].cipher != nullptr);
+  }
+  for (uint16_t id : kNTLSCiphers) {
     co_list[num++].cipher = SSL_get_cipher_by_value(id);
     assert(co_list[num - 1].cipher != nullptr);
   }
@@ -1283,6 +1323,8 @@ uint32_t ssl_cipher_auth_mask_for_key(const EVP_PKEY *key, bool sign_ok) {
     case EVP_PKEY_ED25519:
       // Ed25519 keys in TLS 1.2 repurpose the ECDSA ciphers.
       return sign_ok ? SSL_aECDSA : 0;
+    case EVP_PKEY_SM2:
+      return sign_ok ? SSL_aSM2 : 0;
     default:
       return 0;
   }
@@ -1374,6 +1416,12 @@ int SSL_CIPHER_is_aead(const SSL_CIPHER *cipher) {
   return (cipher->algorithm_mac & SSL_AEAD) != 0;
 }
 
+int SSL_CIPHER_is_NTLS(const SSL_CIPHER *cipher) {
+  return (cipher->algorithm_mkey == SSL_kSM2 ||
+          cipher->algorithm_mkey == SSL_kSM2DHE ||
+          cipher->algorithm_auth == SSL_aSM2);
+}
+
 int SSL_CIPHER_get_cipher_nid(const SSL_CIPHER *cipher) {
   switch (cipher->algorithm_enc) {
     case SSL_3DES:
@@ -1388,6 +1436,8 @@ int SSL_CIPHER_get_cipher_nid(const SSL_CIPHER *cipher) {
       return NID_aes_256_gcm;
     case SSL_CHACHA20POLY1305:
       return NID_chacha20_poly1305;
+    case SSL_SM4:
+      return NID_sm4_cbc;
   }
   assert(0);
   return NID_undef;
@@ -1401,6 +1451,8 @@ int SSL_CIPHER_get_digest_nid(const SSL_CIPHER *cipher) {
       return NID_sha1;
     case SSL_SHA256:
       return NID_sha256;
+    case SSL_SM3:
+      return NID_sm3;
   }
   assert(0);
   return NID_undef;
@@ -1416,6 +1468,10 @@ int SSL_CIPHER_get_kx_nid(const SSL_CIPHER *cipher) {
       return NID_kx_psk;
     case SSL_kGENERIC:
       return NID_kx_any;
+    case SSL_kSM2:
+      return NID_kx_sm2;
+    case SSL_kSM2DHE:
+      return NID_kx_sm2dhe;
   }
   assert(0);
   return NID_undef;
@@ -1432,6 +1488,8 @@ int SSL_CIPHER_get_auth_nid(const SSL_CIPHER *cipher) {
       return NID_auth_psk;
     case SSL_aGENERIC:
       return NID_auth_any;
+    case SSL_aSM2:
+      return NID_auth_sm2;
   }
   assert(0);
   return NID_undef;
@@ -1445,6 +1503,8 @@ const EVP_MD *SSL_CIPHER_get_handshake_digest(const SSL_CIPHER *cipher) {
       return EVP_sha256();
     case SSL_HANDSHAKE_MAC_SHA384:
       return EVP_sha384();
+    case SSL_HANDSHAKE_MAC_SM3:
+      return EVP_sm3();
   }
   assert(0);
   return NULL;
@@ -1466,6 +1526,13 @@ uint16_t SSL_CIPHER_get_min_version(const SSL_CIPHER *cipher) {
   if (cipher->algorithm_mkey == SSL_kGENERIC ||
       cipher->algorithm_auth == SSL_aGENERIC) {
     return TLS1_3_VERSION;
+  }
+
+  if (cipher->algorithm_mkey == SSL_kSM2 ||
+      cipher->algorithm_mkey == SSL_kSM2DHE ||
+      cipher->algorithm_auth == SSL_aSM2) 
+  {
+    return NTLS_VERSION;
   }
 
   if (cipher->algorithm_prf != SSL_HANDSHAKE_MAC_DEFAULT) {
@@ -1529,6 +1596,14 @@ const char *SSL_CIPHER_get_kx_name(const SSL_CIPHER *cipher) {
       assert(cipher->algorithm_auth == SSL_aGENERIC);
       return "GENERIC";
 
+    case SSL_kSM2:
+      assert(cipher->algorithm_auth == SSL_aSM2);
+      return "SM2";
+
+    case SSL_kSM2DHE:
+      assert(cipher->algorithm_auth == SSL_aSM2);
+      return "SM2DHE";
+
     default:
       assert(0);
       return "UNKNOWN";
@@ -1558,6 +1633,11 @@ int SSL_CIPHER_get_bits(const SSL_CIPHER *cipher, int *out_alg_bits) {
     case SSL_3DES:
       alg_bits = 168;
       strength_bits = 112;
+      break;
+
+    case SSL_SM4:
+      alg_bits = 256;
+      strength_bits = 256;
       break;
 
     default:
@@ -1599,6 +1679,14 @@ const char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf,
       kx = "GENERIC";
       break;
 
+    case SSL_kSM2:
+      kx = "SM2";
+      break;
+
+    case SSL_kSM2DHE:
+      kx = "SM2DHE";
+      break;
+
     default:
       kx = "unknown";
   }
@@ -1619,6 +1707,10 @@ const char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf,
 
     case SSL_aGENERIC:
       au = "GENERIC";
+      break;
+
+    case SSL_aSM2:
+      au = "SM2";
       break;
 
     default:
@@ -1651,6 +1743,10 @@ const char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf,
       enc = "ChaCha20-Poly1305";
       break;
 
+    case SSL_SM4:
+      enc = "SM4";
+      break;
+
     default:
       enc = "unknown";
       break;
@@ -1667,6 +1763,10 @@ const char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf,
 
     case SSL_AEAD:
       mac = "AEAD";
+      break;
+
+    case SSL_SM3:
+      enc = "SM3";
       break;
 
     default:

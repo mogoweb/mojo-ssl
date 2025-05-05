@@ -66,6 +66,7 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/mem.h>
+#include <openssl/sm2.h>
 #include <openssl/span.h>
 
 #include "internal.h"
@@ -76,7 +77,7 @@ BSSL_NAMESPACE_BEGIN
 
 bool ssl_is_key_type_supported(int key_type) {
   return key_type == EVP_PKEY_RSA || key_type == EVP_PKEY_EC ||
-         key_type == EVP_PKEY_ED25519;
+         key_type == EVP_PKEY_ED25519 || key_type == EVP_PKEY_SM2;
 }
 
 typedef struct {
@@ -108,6 +109,7 @@ static const SSL_SIGNATURE_ALGORITHM kSignatureAlgorithms[] = {
      false},
 
     {SSL_SIGN_ED25519, EVP_PKEY_ED25519, NID_undef, nullptr, false},
+    {SSL_SIGN_SM2, EVP_PKEY_SM2, NID_undef, &EVP_sm3, false},
 };
 
 static const SSL_SIGNATURE_ALGORITHM *get_signature_algorithm(uint16_t sigalg) {
@@ -137,7 +139,7 @@ bool ssl_pkey_supports_algorithm(const SSL *ssl, EVP_PKEY *pkey,
     return false;
   }
 
-  if (ssl_protocol_version(ssl) < TLS1_2_VERSION) {
+  if (ssl_protocol_version(ssl) < TLS1_2_VERSION && ssl_protocol_version(ssl) != NTLS_VERSION) {
     // TLS 1.0 and 1.1 do not negotiate algorithms and always sign one of two
     // hardcoded algorithms.
     return sigalg == SSL_SIGN_RSA_PKCS1_MD5_SHA1 ||
@@ -158,7 +160,7 @@ bool ssl_pkey_supports_algorithm(const SSL *ssl, EVP_PKEY *pkey,
     }
 
     // EC keys have a curve requirement.
-    if (alg->pkey_type == EVP_PKEY_EC &&
+    if ((alg->pkey_type == EVP_PKEY_EC || alg->pkey_type == EVP_PKEY_SM2) &&
         (alg->curve == NID_undef ||
          EC_GROUP_get_curve_name(
              EC_KEY_get0_group(EVP_PKEY_get0_EC_KEY(pkey))) != alg->curve)) {
@@ -471,6 +473,7 @@ static const SignatureAlgorithmName kSignatureAlgorithmNames[] = {
     {SSL_SIGN_RSA_PSS_RSAE_SHA384, "rsa_pss_rsae_sha384"},
     {SSL_SIGN_RSA_PSS_RSAE_SHA512, "rsa_pss_rsae_sha512"},
     {SSL_SIGN_ED25519, "ed25519"},
+    {SSL_SIGN_SM2, "sm2"},
 };
 
 const char *SSL_get_signature_algorithm_name(uint16_t sigalg,
@@ -483,6 +486,8 @@ const char *SSL_get_signature_algorithm_name(uint16_t sigalg,
         return "ecdsa_sha384";
       case SSL_SIGN_ECDSA_SECP521R1_SHA512:
         return "ecdsa_sha512";
+      case SSL_SIGN_SM2:
+        return "sm2";
         // If adding more here, also update
         // |SSL_get_all_signature_algorithm_names|.
     }
@@ -647,6 +652,7 @@ static constexpr struct {
     {EVP_PKEY_EC, NID_sha384, SSL_SIGN_ECDSA_SECP384R1_SHA384},
     {EVP_PKEY_EC, NID_sha512, SSL_SIGN_ECDSA_SECP521R1_SHA512},
     {EVP_PKEY_ED25519, NID_undef, SSL_SIGN_ED25519},
+    {EVP_PKEY_SM2, NID_sm3, SSL_SIGN_SM2},
 };
 
 static bool parse_sigalg_pairs(Array<uint16_t> *out, const int *values,
@@ -774,6 +780,8 @@ static bool parse_sigalgs_list(Array<uint16_t> *out, const char *str) {
           pkey_type = EVP_PKEY_RSA_PSS;
         } else if (strcmp(buf, "ECDSA") == 0) {
           pkey_type = EVP_PKEY_EC;
+        } else if (strcmp(buf, "SM2") == 0) {
+          pkey_type = EVP_PKEY_SM2;
         } else {
           OPENSSL_PUT_ERROR(SSL, SSL_R_INVALID_SIGNATURE_ALGORITHM);
           ERR_add_error_dataf("unknown public key type '%s'", buf);
@@ -821,6 +829,8 @@ static bool parse_sigalgs_list(Array<uint16_t> *out, const char *str) {
             hash_nid = NID_sha384;
           } else if (strcmp(buf, "SHA512") == 0) {
             hash_nid = NID_sha512;
+          } else if (strcmp(buf, "SM3") == 0) {
+            hash_nid = NID_sm3;
           } else {
             OPENSSL_PUT_ERROR(SSL, SSL_R_INVALID_SIGNATURE_ALGORITHM);
             ERR_add_error_dataf("unknown hash function '%s'", buf);

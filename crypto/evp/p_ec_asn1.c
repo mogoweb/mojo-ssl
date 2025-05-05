@@ -108,6 +108,9 @@ static int eckey_pub_decode(EVP_PKEY *out, CBS *params, CBS *key) {
   }
 
   EVP_PKEY_assign_EC_KEY(out, eckey);
+  if (EC_GROUP_get_curve_name(group) == NID_sm2) {
+    out->type = EVP_PKEY_SM2;
+  }
   return 1;
 
 err:
@@ -316,7 +319,7 @@ int EVP_PKEY_assign_EC_KEY(EVP_PKEY *pkey, EC_KEY *key) {
 }
 
 EC_KEY *EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey) {
-  if (pkey->type != EVP_PKEY_EC) {
+  if (pkey->type != EVP_PKEY_EC && pkey->type != EVP_PKEY_SM2) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_EXPECTING_AN_EC_KEY_KEY);
     return NULL;
   }
@@ -330,3 +333,89 @@ EC_KEY *EVP_PKEY_get1_EC_KEY(const EVP_PKEY *pkey) {
   }
   return ec_key;
 }
+
+static int sm2key_pub_encode(CBB *out, const EVP_PKEY *key) {
+
+  const EC_KEY *ec_key = key->pkey;
+  const EC_GROUP *group = EC_KEY_get0_group(ec_key);
+  const EC_POINT *public_key = EC_KEY_get0_public_key(ec_key);
+
+  // See RFC 5480, section 2.
+  CBB spki, algorithm, oid, key_bitstring;
+  if (!CBB_add_asn1(out, &spki, CBS_ASN1_SEQUENCE) ||
+      !CBB_add_asn1(&spki, &algorithm, CBS_ASN1_SEQUENCE) ||
+      !CBB_add_asn1(&algorithm, &oid, CBS_ASN1_OBJECT) ||
+      !CBB_add_bytes(&oid, sm2_asn1_meth.oid, sm2_asn1_meth.oid_len) ||
+      !EC_KEY_marshal_curve_name(&algorithm, group) ||
+      !CBB_add_asn1(&spki, &key_bitstring, CBS_ASN1_BITSTRING) ||
+      !CBB_add_u8(&key_bitstring, 0 /* padding */) ||
+      !EC_POINT_point2cbb(&key_bitstring, group, public_key,
+                          POINT_CONVERSION_UNCOMPRESSED, NULL) ||
+      !CBB_flush(out)) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_ENCODE_ERROR);
+    return 0;
+  }
+
+  return 1;
+}
+
+static int sm2key_priv_encode(CBB *out, const EVP_PKEY *key) {
+  const EC_KEY *ec_key = key->pkey;
+
+  // Omit the redundant copy of the curve name. This contradicts RFC 5915 but
+  // aligns with PKCS #11. SEC 1 only says they may be omitted if known by other
+  // means. Both OpenSSL and NSS omit the redundant parameters, so we omit them
+  // as well.
+  unsigned enc_flags = EC_KEY_get_enc_flags(ec_key) | EC_PKEY_NO_PARAMETERS;
+
+  // See RFC 5915.
+  CBB pkcs8, algorithm, oid, private_key;
+  if (!CBB_add_asn1(out, &pkcs8, CBS_ASN1_SEQUENCE) ||
+      !CBB_add_asn1_uint64(&pkcs8, 0 /* version */) ||
+      !CBB_add_asn1(&pkcs8, &algorithm, CBS_ASN1_SEQUENCE) ||
+      !CBB_add_asn1(&algorithm, &oid, CBS_ASN1_OBJECT) ||
+      !CBB_add_bytes(&oid, sm2_asn1_meth.oid, sm2_asn1_meth.oid_len) ||
+      !EC_KEY_marshal_curve_name(&algorithm, EC_KEY_get0_group(ec_key)) ||
+      !CBB_add_asn1(&pkcs8, &private_key, CBS_ASN1_OCTETSTRING) ||
+      !EC_KEY_marshal_private_key(&private_key, ec_key, enc_flags) ||
+      !CBB_flush(out)) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_ENCODE_ERROR);
+    return 0;
+  }
+
+  return 1;
+}
+
+const EVP_PKEY_ASN1_METHOD sm2_asn1_meth = {
+  EVP_PKEY_SM2,
+  /* 1.2.156.10197.1.301.1 */
+  {0x2a, 0x81, 0x1c, 0xcf, 0x55, 0x01, 0x82, 0x2d, 0x01},
+  9,
+
+  &ec_pkey_meth,
+
+  eckey_pub_decode,
+  sm2key_pub_encode,
+  eckey_pub_cmp,
+
+  eckey_priv_decode,
+  sm2key_priv_encode,
+
+  /*set_priv_raw=*/NULL,
+  /*set_pub_raw=*/NULL,
+  /*get_priv_raw=*/NULL,
+  /*get_pub_raw=*/NULL,
+  eckey_set1_tls_encodedpoint,
+  eckey_get1_tls_encodedpoint,
+
+  eckey_opaque,
+
+  int_ec_size,
+  ec_bits,
+
+  ec_missing_parameters,
+  ec_copy_parameters,
+  ec_cmp_parameters,
+
+  int_ec_free,
+};

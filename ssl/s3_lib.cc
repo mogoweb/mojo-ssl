@@ -215,4 +215,28 @@ void tls_free(SSL *ssl) {
   ssl->s3 = NULL;
 }
 
+bool ntls_new(SSL *ssl) {
+  UniquePtr<SSL3_STATE> s3 = MakeUnique<SSL3_STATE>();
+  if (!s3) {
+    return false;
+  }
+
+  s3->aead_read_ctx = SSLAEADContext::CreateNullCipher(SSL_is_dtls(ssl));
+  s3->aead_write_ctx = SSLAEADContext::CreateNullCipher(SSL_is_dtls(ssl));
+  s3->hs = ssl_handshake_new(ssl);
+  if (!s3->aead_read_ctx || !s3->aead_write_ctx || !s3->hs) {
+    return false;
+  }
+
+  ssl->s3 = s3.release();
+
+  // Set the version to the highest supported version.
+  //
+  // TODO(davidben): Move this field into |s3|, have it store the normalized
+  // protocol version, and implement this pre-negotiation quirk in |SSL_version|
+  // at the API boundary rather than in internal state.
+  ssl->version = NTLS_VERSION;
+  return true;
+}
+
 BSSL_NAMESPACE_END

@@ -580,6 +580,10 @@ BSSL_NAMESPACE_BEGIN
 #define SSL_kPSK 0x00000004u
 #define SSL_kGENERIC 0x00000008u
 
+// NTLS
+#define SSL_kSM2    0x00000010u
+#define SSL_kSM2DHE 0x00000020u
+
 // Bits for |algorithm_auth| (server authentication).
 #define SSL_aRSA_SIGN 0x00000001u
 #define SSL_aRSA_DECRYPT 0x00000002u
@@ -587,8 +591,10 @@ BSSL_NAMESPACE_BEGIN
 // SSL_aPSK is set for both PSK and ECDHE_PSK.
 #define SSL_aPSK 0x00000008u
 #define SSL_aGENERIC 0x00000010u
+// NTLS
+#define SSL_aSM2 0x00000020u
 
-#define SSL_aCERT (SSL_aRSA_SIGN | SSL_aRSA_DECRYPT | SSL_aECDSA)
+#define SSL_aCERT (SSL_aRSA_SIGN | SSL_aRSA_DECRYPT | SSL_aECDSA | SSL_aSM2)
 
 // Bits for |algorithm_enc| (symmetric encryption).
 #define SSL_3DES 0x00000001u
@@ -597,6 +603,8 @@ BSSL_NAMESPACE_BEGIN
 #define SSL_AES128GCM 0x00000008u
 #define SSL_AES256GCM 0x00000010u
 #define SSL_CHACHA20POLY1305 0x00000020u
+// NTLS
+#define SSL_SM4 0x00000080u
 
 #define SSL_AES (SSL_AES128 | SSL_AES256 | SSL_AES128GCM | SSL_AES256GCM)
 
@@ -605,11 +613,15 @@ BSSL_NAMESPACE_BEGIN
 #define SSL_SHA256 0x00000002u
 // SSL_AEAD is set for all AEADs.
 #define SSL_AEAD 0x00000004u
+// NTLS
+#define SSL_SM3 0x00000008u
 
 // Bits for |algorithm_prf| (handshake digest).
 #define SSL_HANDSHAKE_MAC_DEFAULT 0x1
 #define SSL_HANDSHAKE_MAC_SHA256 0x2
 #define SSL_HANDSHAKE_MAC_SHA384 0x4
+// NTLS
+#define SSL_HANDSHAKE_MAC_SM3 0x8
 
 // SSL_MAX_MD_SIZE is size of the largest hash function used in TLS, SHA-384.
 #define SSL_MAX_MD_SIZE 48
@@ -3091,6 +3103,8 @@ struct SSL_CONFIG {
   // certificate for a server or the client certificate for a client).
   UniquePtr<CERT> cert;
 
+  UniquePtr<CERT> enc_cert;
+
   int (*verify_callback)(int ok,
                          X509_STORE_CTX *ctx) =
       nullptr;  // fail if callback returns 0
@@ -3231,6 +3245,7 @@ struct SSL_CONFIG {
 static const size_t kMaxEarlyDataAccepted = 14336;
 
 UniquePtr<CERT> ssl_cert_dup(CERT *cert);
+bool ssl_set_enc_cert(CERT *cert, UniquePtr<CRYPTO_BUFFER> buffer);
 bool ssl_set_cert(CERT *cert, UniquePtr<CRYPTO_BUFFER> buffer);
 bool ssl_is_key_type_supported(int key_type);
 // ssl_compare_public_and_private_key returns true if |pubkey| is the public
@@ -3346,6 +3361,8 @@ bool tls_finish_message(const SSL *ssl, CBB *cbb, Array<uint8_t> *out_msg);
 bool tls_add_message(SSL *ssl, Array<uint8_t> msg);
 bool tls_add_change_cipher_spec(SSL *ssl);
 int tls_flush_flight(SSL *ssl);
+
+bool ntls_new(SSL *ssl);
 
 bool dtls1_init_message(const SSL *ssl, CBB *cbb, CBB *body, uint8_t type);
 bool dtls1_finish_message(const SSL *ssl, CBB *cbb, Array<uint8_t> *out_msg);
@@ -3631,6 +3648,7 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
   uint32_t max_cert_list = SSL_MAX_CERT_LIST_DEFAULT;
 
   bssl::UniquePtr<bssl::CERT> cert;
+  bssl::UniquePtr<bssl::CERT> enc_cert;
 
   // callback that allows applications to peek at protocol messages
   void (*msg_callback)(int is_write, int version, int content_type,

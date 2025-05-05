@@ -146,6 +146,7 @@
 
 #include <openssl/bio.h>
 #include <openssl/buf.h>
+#include <openssl/ntls.h>
 #include <openssl/pem.h>
 #include <openssl/span.h>
 #include <openssl/ssl3.h>
@@ -643,6 +644,7 @@ OPENSSL_EXPORT int DTLSv1_handle_timeout(SSL *ssl);
 #define DTLS1_VERSION_MAJOR 0xfe
 #define SSL3_VERSION_MAJOR 0x03
 
+#define NTLS1_1_VERSION 0x0101
 #define SSL3_VERSION 0x0300
 #define TLS1_VERSION 0x0301
 #define TLS1_1_VERSION 0x0302
@@ -717,6 +719,7 @@ OPENSSL_EXPORT int SSL_version(const SSL *ssl);
 #define SSL_OP_NO_TLSv1_2 0x08000000L
 #define SSL_OP_NO_TLSv1_1 0x10000000L
 #define SSL_OP_NO_TLSv1_3 0x20000000L
+#define SSL_OP_NO_NTLS 0x40000000L
 #define SSL_OP_NO_DTLSv1 SSL_OP_NO_TLSv1
 #define SSL_OP_NO_DTLSv1_2 SSL_OP_NO_TLSv1_2
 
@@ -1204,6 +1207,8 @@ OPENSSL_EXPORT int SSL_set_ocsp_response(SSL *ssl,
 #define SSL_SIGN_RSA_PSS_RSAE_SHA384 0x0805
 #define SSL_SIGN_RSA_PSS_RSAE_SHA512 0x0806
 #define SSL_SIGN_ED25519 0x0807
+// NTLS
+#define SSL_SIGN_SM2     0x0808
 
 // SSL_SIGN_RSA_PKCS1_MD5_SHA1 is an internal signature algorithm used to
 // specify raw RSASSA-PKCS1-v1_5 with an MD5/SHA-1 concatenation, as used in TLS
@@ -1616,6 +1621,9 @@ OPENSSL_EXPORT size_t SSL_get_all_cipher_names(const char **out,
 // list, so this does not apply if, say, sending strings across services.
 OPENSSL_EXPORT size_t SSL_get_all_standard_cipher_names(const char **out,
                                                         size_t max_out);
+
+// check if NTLS cipher suite
+OPENSSL_EXPORT int SSL_CIPHER_is_NTLS(const SSL_CIPHER *cipher);
 
 
 // Cipher suite configuration.
@@ -2533,6 +2541,7 @@ OPENSSL_EXPORT size_t SSL_CTX_get_num_tickets(const SSL_CTX *ctx);
 #define SSL_GROUP_SECP521R1 25
 #define SSL_GROUP_X25519 29
 #define SSL_GROUP_X25519_KYBER768_DRAFT00 0x6399
+#define SSL_GROUP_SM2 41
 
 // SSL_CTX_set1_group_ids sets the preferred groups for |ctx| to |group_ids|.
 // Each element of |group_ids| should be one of the |SSL_GROUP_*| constants. It
@@ -4864,6 +4873,7 @@ OPENSSL_EXPORT const SSL_METHOD *TLSv1_1_method(void);
 OPENSSL_EXPORT const SSL_METHOD *TLSv1_2_method(void);
 OPENSSL_EXPORT const SSL_METHOD *DTLSv1_method(void);
 OPENSSL_EXPORT const SSL_METHOD *DTLSv1_2_method(void);
+OPENSSL_EXPORT const SSL_METHOD *NTLS_method(void);
 
 // These client- and server-specific methods call their corresponding generic
 // methods.
@@ -4883,6 +4893,8 @@ OPENSSL_EXPORT const SSL_METHOD *DTLSv1_server_method(void);
 OPENSSL_EXPORT const SSL_METHOD *DTLSv1_client_method(void);
 OPENSSL_EXPORT const SSL_METHOD *DTLSv1_2_server_method(void);
 OPENSSL_EXPORT const SSL_METHOD *DTLSv1_2_client_method(void);
+OPENSSL_EXPORT const SSL_METHOD *NTLS_server_method(void);
+OPENSSL_EXPORT const SSL_METHOD *NTLS_client_method(void);
 
 // SSL_clear resets |ssl| to allow another connection and returns one on success
 // or zero on failure. It returns most configuration state but releases memory
@@ -5471,6 +5483,7 @@ OPENSSL_EXPORT int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg);
 #define SSL_CURVE_SECP521R1 SSL_GROUP_SECP521R1
 #define SSL_CURVE_X25519 SSL_GROUP_X25519
 #define SSL_CURVE_X25519_KYBER768_DRAFT00 SSL_GROUP_X25519_KYBER768_DRAFT00
+#define SSL_CURVE_SM2 SSL_GROUP_SM2
 
 // SSL_get_curve_id calls |SSL_get_group_id|.
 OPENSSL_EXPORT uint16_t SSL_get_curve_id(const SSL *ssl);
@@ -5518,6 +5531,11 @@ OPENSSL_EXPORT int SSL_CTX_check_private_key(const SSL_CTX *ctx);
 //
 // See discussion in |SSL_CTX_check_private_key|.
 OPENSSL_EXPORT int SSL_check_private_key(const SSL *ssl);
+
+// for NTLS
+OPENSSL_EXPORT int SSL_CTX_check_enc_private_key(const SSL_CTX *ctx);
+
+OPENSSL_EXPORT int SSL_check_enc_private_key(const SSL *ssl);
 
 
 // Compliance policy configurations

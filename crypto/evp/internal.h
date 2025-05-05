@@ -230,6 +230,43 @@ struct evp_pkey_ctx_st {
   void *data;
 } /* EVP_PKEY_CTX */;
 
+typedef struct {
+  /* Key and paramgen group */
+  EC_GROUP *gen_group;
+  /* message digest */
+  const EVP_MD *md;
+  /* Duplicate key if custom cofactor needed */
+  EC_KEY *co_key;
+  /* Cofactor mode */
+  signed char cofactor_mode;
+  /* KDF (if any) to use for ECDH */
+  char kdf_type;
+  /* Message digest to use for key derivation */
+  const EVP_MD *kdf_md;
+  /* User key material */
+  unsigned char *kdf_ukm;
+  size_t kdf_ukmlen;
+  /* KDF output length */
+  size_t kdf_outlen;
+
+  /* server tag */
+  int server;
+  /* peer uid */
+  char *peer_id;
+  /* self uid */
+  char *self_id;
+  /* peer uid length */
+  int peerid_len;
+  /* self uid length */
+  int selfid_len;
+  /* peer ephemeral public key */
+  EC_KEY *peer_ecdhe_key;
+  /* self ephemeral key */
+  EC_KEY *self_ecdhe_key;
+  /* sm2/ecc encrypt out format, 0 for ASN1 */
+  int encdata_format;
+} SM2_PKEY_CTX;
+
 struct evp_pkey_method_st {
   int pkey_id;
 
@@ -290,6 +327,7 @@ extern const EVP_PKEY_ASN1_METHOD rsa_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD ed25519_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD x25519_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD dh_asn1_meth;
+extern const EVP_PKEY_ASN1_METHOD sm2_asn1_meth;
 
 extern const EVP_PKEY_METHOD rsa_pkey_meth;
 extern const EVP_PKEY_METHOD ec_pkey_meth;

@@ -168,6 +168,7 @@
 #include <openssl/mem.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
+#include <openssl/x509v3.h>
 
 #include "../crypto/internal.h"
 #include "internal.h"
@@ -274,6 +275,10 @@ static bool ssl_write_client_cipher_list(const SSL_HANDSHAKE *hs, CBB *out,
       }
       if (SSL_CIPHER_get_min_version(cipher) > hs->max_version ||
           SSL_CIPHER_get_max_version(cipher) < hs->min_version) {
+        continue;
+      }
+      // don't add  NTLS cipher suites to TLS
+      if (SSL_CIPHER_is_NTLS(cipher) && ssl->version != NTLS_VERSION ) {
         continue;
       }
       any_enabled = true;
@@ -478,6 +483,8 @@ static enum ssl_hs_wait_t do_start_connect(SSL_HANDSHAKE *hs) {
   if (SSL_is_dtls(hs->ssl)) {
     hs->client_version =
         hs->max_version >= TLS1_2_VERSION ? DTLS1_2_VERSION : DTLS1_VERSION;
+  } else if (hs->client_version == NTLS_VERSION) {
+    ssl->version = NTLS_VERSION;
   } else {
     hs->client_version =
         hs->max_version >= TLS1_2_VERSION ? TLS1_2_VERSION : hs->max_version;
@@ -719,6 +726,9 @@ static enum ssl_hs_wait_t do_read_server_hello(SSL_HANDSHAKE *hs) {
   assert(ssl->s3->have_version == ssl->s3->initial_handshake_complete);
   if (!ssl->s3->have_version) {
     ssl->version = server_version;
+    if (server_version == NTLS_VERSION) {
+      hs->client_version = server_version;
+    }
     // At this point, the connection's version is known and ssl->version is
     // fixed. Begin enforcing the record-layer version.
     ssl->s3->have_version = true;
@@ -765,6 +775,7 @@ static enum ssl_hs_wait_t do_read_server_hello(SSL_HANDSHAKE *hs) {
 
   // Enforce the TLS 1.3 anti-downgrade feature.
   if (!ssl->s3->initial_handshake_complete &&
+      server_version != NTLS_VERSION &&
       ssl_supports_version(hs, TLS1_3_VERSION)) {
     static_assert(
         sizeof(kTLS12DowngradeRandom) == sizeof(kTLS13DowngradeRandom),
@@ -924,6 +935,10 @@ static enum ssl_hs_wait_t do_tls13(SSL_HANDSHAKE *hs) {
 
 static enum ssl_hs_wait_t do_read_server_certificate(SSL_HANDSHAKE *hs) {
   SSL *const ssl = hs->ssl;
+  STACK_OF(X509) *sk = NULL;
+  CBS certificate_list;
+  const uint8_t *data;
+  X509 *x = NULL;
 
   if (!ssl_cipher_uses_certificate_auth(hs->new_cipher)) {
     hs->state = state_read_certificate_status;
@@ -941,6 +956,7 @@ static enum ssl_hs_wait_t do_read_server_certificate(SSL_HANDSHAKE *hs) {
   }
 
   CBS body = msg.body;
+  CBS body1 = msg.body;
   uint8_t alert = SSL_AD_DECODE_ERROR;
   if (!ssl_parse_cert_chain(&alert, &hs->new_session->certs, &hs->peer_pubkey,
                             NULL, &body, ssl->ctx->pool)) {
@@ -962,6 +978,63 @@ static enum ssl_hs_wait_t do_read_server_certificate(SSL_HANDSHAKE *hs) {
     ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_ILLEGAL_PARAMETER);
     return ssl_hs_error;
   }
+
+  if (ssl_protocol_version(ssl) == NTLS_VERSION) {
+	  sk = sk_X509_new_null();
+	  if (sk == NULL) {
+	    OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
+	    ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
+	    return ssl_hs_error;
+	  }
+
+	  if (!CBS_get_u24_length_prefixed(&body1, &certificate_list) ||
+	      CBS_len(&certificate_list) == 0 || CBS_len(&body1) != 0) {
+	    OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
+	    ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
+	    return ssl_hs_error;
+	  }
+
+	  while (CBS_len(&certificate_list) > 0) {
+	    CBS certificate;
+	    if (!CBS_get_u24_length_prefixed(&certificate_list, &certificate)) {
+	      OPENSSL_PUT_ERROR(SSL, SSL_R_CERT_LENGTH_MISMATCH);
+	      ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
+	      return ssl_hs_error;
+	    }
+
+	    data = CBS_data(&certificate);
+	    x = d2i_X509(NULL, &data, (long)CBS_len(&certificate));
+
+	    if (x == NULL) {
+	      OPENSSL_PUT_ERROR(SSL, ERR_R_ASN1_LIB);
+	      ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
+	      return ssl_hs_error;
+	    }
+	    if (data != CBS_data(&certificate) + CBS_len(&certificate)) {
+	      OPENSSL_PUT_ERROR(SSL, SSL_R_CERT_LENGTH_MISMATCH);
+	      ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
+	      return ssl_hs_error;
+	    }
+	    if (!sk_X509_push(sk, x)) {
+	      OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
+	      ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
+	      return ssl_hs_error;
+	    }
+	    x = NULL;
+	  }
+
+	  X509 *leaf = sk_X509_value(sk, 0);
+
+	  /* NOTE: Unlike the server half, the client's copy of |cert_chain| includes
+	   * the leaf. */
+	  sk_X509_pop_free(hs->new_session->x509_chain, X509_free);
+	  hs->new_session->x509_chain = sk;
+	  sk = NULL;
+
+	  X509_free(hs->new_session->x509_peer);
+	  X509_up_ref(leaf);
+	  hs->new_session->x509_peer = leaf;
+	}
 
   ssl->method->next_message(ssl);
 
@@ -1120,7 +1193,7 @@ static enum ssl_hs_wait_t do_read_server_key_exchange(SSL_HANDSHAKE *hs) {
     hs->peer_psk_identity_hint.reset(raw);
   }
 
-  if (alg_k & SSL_kECDHE) {
+  if (alg_k & SSL_kECDHE || alg_k & SSL_kSM2DHE) {
     // Parse the server parameters.
     uint8_t group_type;
     uint16_t group_id;
@@ -1146,7 +1219,7 @@ static enum ssl_hs_wait_t do_read_server_key_exchange(SSL_HANDSHAKE *hs) {
     if (!hs->peer_key.CopyFrom(point)) {
       return ssl_hs_error;
     }
-  } else if (!(alg_k & SSL_kPSK)) {
+  } else if (!(alg_k & SSL_kPSK) && !(alg_k & SSL_kSM2)) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_UNEXPECTED_MESSAGE);
     ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_UNEXPECTED_MESSAGE);
     return ssl_hs_error;
@@ -1174,6 +1247,11 @@ static enum ssl_hs_wait_t do_read_server_key_exchange(SSL_HANDSHAKE *hs) {
         return ssl_hs_error;
       }
       hs->new_session->peer_signature_algorithm = signature_algorithm;
+    } else if (ssl_protocol_version(ssl) == NTLS_VERSION) {
+      if (alg_a & SSL_aSM2)
+        signature_algorithm = SSL_SIGN_SM2;
+      else
+        return ssl_hs_error;
     } else if (!tls1_get_legacy_signature_algorithm(&signature_algorithm,
                                                     hs->peer_pubkey.get())) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_PEER_ERROR_UNSUPPORTED_CERTIFICATE_TYPE);
@@ -1395,6 +1473,19 @@ static enum ssl_hs_wait_t do_send_client_certificate(SSL_HANDSHAKE *hs) {
     }
   }
 
+  if (ssl_protocol_version(ssl) == NTLS_VERSION && hs->config->enc_cert->cert_cb != NULL) {
+    int rv = hs->config->enc_cert->cert_cb(ssl, hs->config->cert->cert_cb_arg);
+    if (rv == 0) {
+      ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_INTERNAL_ERROR);
+      OPENSSL_PUT_ERROR(SSL, SSL_R_CERT_CB_ERROR);
+      return ssl_hs_error;
+    }
+    if (rv < 0) {
+      hs->state = state_send_client_certificate;
+      return ssl_hs_x509_lookup;
+    }
+  }
+
   Array<SSL_CREDENTIAL *> creds;
   if (!ssl_get_credential_list(hs, &creds)) {
     return ssl_hs_error;
@@ -1534,7 +1625,7 @@ static enum ssl_hs_wait_t do_send_client_key_exchange(SSL_HANDSHAKE *hs) {
         !CBB_flush(&body)) {
       return ssl_hs_error;
     }
-  } else if (alg_k & SSL_kECDHE) {
+  } else if (alg_k & SSL_kECDHE || alg_k & SSL_kSM2DHE) {
     CBB child;
     if (!CBB_add_u8_length_prefixed(&body, &child)) {
       return ssl_hs_error;
@@ -1717,6 +1808,8 @@ static bool can_false_start(const SSL_HANDSHAKE *hs) {
   if (SSL_is_dtls(ssl) ||
       SSL_version(ssl) != TLS1_2_VERSION ||
       hs->new_cipher->algorithm_mkey != SSL_kECDHE ||
+      hs->new_cipher->algorithm_mkey != SSL_kSM2 ||
+	    hs->new_cipher->algorithm_mkey != SSL_kSM2DHE ||
       hs->new_cipher->algorithm_mac != SSL_AEAD) {
     return false;
   }

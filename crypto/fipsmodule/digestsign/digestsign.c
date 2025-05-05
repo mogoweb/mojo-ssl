@@ -56,6 +56,7 @@
 #include <openssl/evp.h>
 
 #include <openssl/err.h>
+#include <openssl/sm2.h>
 
 #include "../../evp/internal.h"
 #include "../delocate.h"
@@ -112,6 +113,20 @@ static int do_sigver_init(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx,
     if (!EVP_DigestInit_ex(ctx, type, e)) {
       return 0;
     }
+  }
+
+  if (pkey && pkey->type == EVP_PKEY_SM2) {
+    const int md_size = EVP_MD_size(type);
+    uint8_t *z = NULL;
+    EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(pkey);
+
+    z = OPENSSL_zalloc(md_size);
+    if (!ossl_sm2_compute_z_digest(z, type, NULL, 0, ec_key)) {
+      OPENSSL_free(z);
+      return 1;
+    }
+    EVP_DigestUpdate(ctx, z, md_size);
+    OPENSSL_free(z);
   }
 
   if (pctx) {

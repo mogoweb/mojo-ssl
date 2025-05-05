@@ -437,6 +437,13 @@ static int aead_des_ede3_cbc_sha1_tls_implicit_iv_init(
                        EVP_sha1(), 1);
 }
 
+static int aead_sm4_cbc_sm3_tls_init(EVP_AEAD_CTX *ctx, const uint8_t *key,
+                                     size_t key_len, size_t tag_len,
+                                     enum evp_aead_direction_t dir) {
+  return aead_tls_init(ctx, key, key_len, tag_len, dir, EVP_sm4_cbc(),
+                       EVP_sm3(), 0);
+}
+
 static int aead_tls_get_iv(const EVP_AEAD_CTX *ctx, const uint8_t **out_iv,
                            size_t *out_iv_len) {
   const AEAD_TLS_CTX *tls_ctx = (AEAD_TLS_CTX *)&ctx->state;
@@ -569,6 +576,22 @@ static const EVP_AEAD aead_des_ede3_cbc_sha1_tls_implicit_iv = {
     aead_tls_tag_len,
 };
 
+static const EVP_AEAD aead_sm4_cbc_sm3_tls = {
+	  32 + 16,
+	  16,
+	  16 + 32,
+	  32,
+	  0,
+	  NULL,
+	  aead_sm4_cbc_sm3_tls_init,
+	  aead_tls_cleanup,
+	  aead_tls_open,
+	  aead_tls_seal_scatter,
+	  NULL,
+	  NULL,
+	  aead_tls_tag_len,
+};
+
 const EVP_AEAD *EVP_aead_aes_128_cbc_sha1_tls(void) {
   return &aead_aes_128_cbc_sha1_tls;
 }
@@ -595,4 +618,8 @@ const EVP_AEAD *EVP_aead_des_ede3_cbc_sha1_tls(void) {
 
 const EVP_AEAD *EVP_aead_des_ede3_cbc_sha1_tls_implicit_iv(void) {
   return &aead_des_ede3_cbc_sha1_tls_implicit_iv;
+}
+
+const EVP_AEAD *EVP_aead_sm4_cbc_sm3_tls(void) { 
+  return &aead_sm4_cbc_sm3_tls;
 }

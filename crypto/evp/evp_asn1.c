@@ -76,6 +76,7 @@ static const EVP_PKEY_ASN1_METHOD *const kASN1Methods[] = {
     &dsa_asn1_meth,
     &ed25519_asn1_meth,
     &x25519_asn1_meth,
+    &sm2_asn1_meth,
 };
 
 static const EVP_PKEY_ASN1_METHOD *parse_key_type(CBS *cbs) {
@@ -210,7 +211,8 @@ static EVP_PKEY *old_priv_decode(CBS *cbs, int type) {
   }
 
   switch (type) {
-    case EVP_PKEY_EC: {
+    case EVP_PKEY_EC:
+    case EVP_PKEY_SM2: {
       EC_KEY *ec_key = EC_KEY_parse_private_key(cbs, NULL);
       if (ec_key == NULL || !EVP_PKEY_assign_EC_KEY(ret, ec_key)) {
         EC_KEY_free(ec_key);
@@ -340,6 +342,7 @@ int i2d_PublicKey(const EVP_PKEY *key, uint8_t **outp) {
     case EVP_PKEY_DSA:
       return i2d_DSAPublicKey(EVP_PKEY_get0_DSA(key), outp);
     case EVP_PKEY_EC:
+    case EVP_PKEY_SM2:
       return i2o_ECPublicKey(EVP_PKEY_get0_EC_KEY(key), outp);
     default:
       OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_PUBLIC_KEY_TYPE);

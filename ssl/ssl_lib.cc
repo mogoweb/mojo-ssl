@@ -574,10 +574,13 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *method) {
   }
 
   ret->cert = MakeUnique<CERT>(method->x509_method);
+  ret->enc_cert = MakeUnique<CERT>(method->x509_method);
   ret->sessions = lh_SSL_SESSION_new(ssl_session_hash, ssl_session_cmp);
   ret->client_CA.reset(sk_CRYPTO_BUFFER_new_null());
   if (ret->cert == nullptr ||       //
       !ret->cert->is_valid() ||     //
+      ret->enc_cert == nullptr ||
+      !ret->enc_cert->is_valid() ||
       ret->sessions == nullptr ||   //
       ret->client_CA == nullptr ||  //
       !ret->x509_method->ssl_ctx_new(ret.get())) {
@@ -652,6 +655,11 @@ SSL *SSL_new(SSL_CTX *ctx) {
 
   ssl->config->cert = ssl_cert_dup(ctx->cert.get());
   if (ssl->config->cert == nullptr) {
+    return nullptr;
+  }
+
+  ssl->config->enc_cert = ssl_cert_dup(ctx->enc_cert.get());
+  if (ssl->config->enc_cert == nullptr) {
     return nullptr;
   }
 
@@ -1765,6 +1773,18 @@ int SSL_check_private_key(const SSL *ssl) {
   return has_cert_and_key(ssl->config->cert->default_credential.get());
 }
 
+int SSL_CTX_check_enc_private_key(const SSL_CTX *ctx) {
+  return has_cert_and_key(ctx->enc_cert->default_credential.get());
+}
+
+int SSL_check_enc_private_key(const SSL *ssl) {
+  if (!ssl->config) {
+    return 0;
+  }
+
+  return has_cert_and_key(ssl->config->enc_cert->default_credential.get());
+}
+
 long SSL_get_default_timeout(const SSL *ssl) {
   return SSL_DEFAULT_SESSION_TIMEOUT;
 }
@@ -2626,7 +2646,13 @@ SSL_CTX *SSL_set_SSL_CTX(SSL *ssl, SSL_CTX *ctx) {
     return nullptr;
   }
 
+  UniquePtr<CERT> new_enc_cert = ssl_cert_dup(ctx->enc_cert.get());
+  if (!new_enc_cert) {
+    return nullptr;
+  }
+
   ssl->config->cert = std::move(new_cert);
+  ssl->config->enc_cert = std::move(new_enc_cert);
   ssl->ctx = UpRef(ctx);
   ssl->enable_early_data = ssl->ctx->enable_early_data;
 

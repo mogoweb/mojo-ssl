@@ -106,6 +106,7 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
+#include <openssl/ntls.h>
 #include <openssl/ssl.h>
 
 #include <assert.h>
@@ -144,6 +145,7 @@ static bool ssl_needs_record_splitting(const SSL *ssl) {
 #if !defined(BORINGSSL_UNSAFE_FUZZER_MODE)
   return !ssl->s3->aead_write_ctx->is_null_cipher() &&
          ssl->s3->aead_write_ctx->ProtocolVersion() < TLS1_1_VERSION &&
+         ssl->s3->aead_write_ctx->ProtocolVersion() != NTLS_VERSION &&
          (ssl->mode & SSL_MODE_CBC_RECORD_SPLITTING) != 0 &&
          SSL_CIPHER_is_block_cipher(ssl->s3->aead_write_ctx->cipher());
 #else
@@ -222,7 +224,10 @@ ssl_open_record_t tls_open_record(SSL *ssl, uint8_t *out_type,
   if (ssl->s3->aead_read_ctx->is_null_cipher()) {
     // Only check the first byte. Enforcing beyond that can prevent decoding
     // version negotiation failure alerts.
-    version_ok = (version >> 8) == SSL3_VERSION_MAJOR;
+    if (version == NTLS_VERSION)
+      version_ok = true;
+    else
+      version_ok = (version >> 8) == SSL3_VERSION_MAJOR;
   } else {
     version_ok = version == ssl->s3->aead_read_ctx->RecordVersion();
   }
@@ -396,6 +401,9 @@ static bool do_seal_record(SSL *ssl, uint8_t *out_prefix, uint8_t *out,
   }
 
   uint16_t record_version = aead->RecordVersion();
+
+  if (ssl->version == NTLS_VERSION)
+    record_version = ssl->version;
 
   out_prefix[1] = record_version >> 8;
   out_prefix[2] = record_version & 0xff;

@@ -310,6 +310,7 @@ static const uint16_t kDefaultGroups[] = {
     SSL_GROUP_X25519,
     SSL_GROUP_SECP256R1,
     SSL_GROUP_SECP384R1,
+    SSL_GROUP_SM2,
 };
 
 Span<const uint16_t> tls1_get_grouplist(const SSL_HANDSHAKE *hs) {
@@ -3473,6 +3474,10 @@ bool ssl_add_clienthello_tlsext(SSL_HANDSHAKE *hs, CBB *out, CBB *out_encoded,
   if (!CBB_add_u16_length_prefixed(out, &extensions)) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
     return false;
+  }
+
+  if (ssl->version == NTLS_VERSION) {
+    return CBB_flush(out);
   }
 
   // Note we may send multiple ClientHellos for DTLS HelloVerifyRequest and TLS

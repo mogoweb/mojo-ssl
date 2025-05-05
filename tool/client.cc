@@ -161,6 +161,10 @@ static const struct argument kArguments[] = {
         "Print debug information about the handshake",
     },
     {
+        "-ntls", kBooleanArgument,
+        "Use NTLS instead of TLS",
+    },
+    {
         "", kOptionalArgument, "",
     },
 };
@@ -390,7 +394,12 @@ bool Client(const std::vector<std::string> &args) {
     return false;
   }
 
-  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
+  bssl::UniquePtr<SSL_CTX> ctx;
+  if (args_map.count("-ntls") != 0) {
+    ctx.reset(SSL_CTX_new(NTLS_method()));
+  } else {
+    ctx.reset(SSL_CTX_new(TLS_method()));
+  }
 
   const char *keylog_file = getenv("SSLKEYLOGFILE");
   if (keylog_file) {
@@ -426,6 +435,8 @@ bool Client(const std::vector<std::string> &args) {
     fprintf(stderr, "Unknown protocol version: '%s'\n",
             args_map["-max-version"].c_str());
     return false;
+  } else if (args_map.count("-ntls") != 0) {
+    max_version = NTLS_VERSION;
   }
 
   if (!SSL_CTX_set_max_proto_version(ctx.get(), max_version)) {

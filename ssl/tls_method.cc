@@ -55,6 +55,7 @@
  * [including the GNU Public Licence.] */
 
 #include <openssl/ssl.h>
+#include <openssl/ntls.h>
 
 #include <assert.h>
 #include <string.h>
@@ -146,6 +147,28 @@ static bool tls_set_write_state(SSL *ssl, ssl_encryption_level_t level,
 static const SSL_PROTOCOL_METHOD kTLSProtocolMethod = {
     false /* is_dtls */,
     tls_new,
+    tls_free,
+    tls_get_message,
+    tls_next_message,
+    tls_has_unprocessed_handshake_data,
+    tls_open_handshake,
+    tls_open_change_cipher_spec,
+    tls_open_app_data,
+    tls_write_app_data,
+    tls_dispatch_alert,
+    tls_init_message,
+    tls_finish_message,
+    tls_add_message,
+    tls_add_change_cipher_spec,
+    tls_flush_flight,
+    tls_on_handshake_complete,
+    tls_set_read_state,
+    tls_set_write_state,
+};
+
+static const SSL_PROTOCOL_METHOD kNTLSProtocolMethod = {
+    false /* is_dtls */,
+    ntls_new,
     tls_free,
     tls_get_message,
     tls_next_message,
@@ -276,6 +299,15 @@ const SSL_METHOD *TLSv1_method(void) {
   return &kMethod;
 }
 
+const SSL_METHOD *NTLS_method(void) {
+  static const SSL_METHOD kMethod = {
+      NTLS_VERSION,
+      &kNTLSProtocolMethod,
+      &ssl_crypto_x509_method,
+  };
+  return &kMethod;
+}
+
 // Legacy side-specific methods.
 
 const SSL_METHOD *TLSv1_2_server_method(void) {
@@ -288,6 +320,10 @@ const SSL_METHOD *TLSv1_1_server_method(void) {
 
 const SSL_METHOD *TLSv1_server_method(void) {
   return TLSv1_method();
+}
+
+const SSL_METHOD *NTLS_server_method(void) {
+  return NTLS_method();
 }
 
 const SSL_METHOD *TLSv1_2_client_method(void) {
@@ -316,4 +352,8 @@ const SSL_METHOD *TLS_server_method(void) {
 
 const SSL_METHOD *TLS_client_method(void) {
   return TLS_method();
+}
+
+const SSL_METHOD *NTLS_client_method(void) {
+  return NTLS_method();
 }

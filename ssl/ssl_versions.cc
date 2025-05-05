@@ -12,6 +12,7 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
+#include <openssl/ntls.h>
 #include <openssl/ssl.h>
 
 #include <assert.h>
@@ -34,6 +35,7 @@ bool ssl_protocol_version_from_wire(uint16_t *out, uint16_t version) {
     case TLS1_1_VERSION:
     case TLS1_2_VERSION:
     case TLS1_3_VERSION:
+    case NTLS_VERSION:
       *out = version;
       return true;
 
@@ -59,6 +61,7 @@ static const uint16_t kTLSVersions[] = {
     TLS1_2_VERSION,
     TLS1_1_VERSION,
     TLS1_VERSION,
+    NTLS_VERSION,
 };
 
 static const uint16_t kDTLSVersions[] = {
@@ -99,6 +102,7 @@ static const VersionInfo kVersionNames[] = {
     {TLS1_VERSION, "TLSv1"},
     {DTLS1_VERSION, "DTLSv1"},
     {DTLS1_2_VERSION, "DTLSv1.2"},
+    {NTLS_VERSION, "NTLS"},
 };
 
 static const char *ssl_version_to_string(uint16_t version) {
@@ -168,6 +172,7 @@ const struct {
     {TLS1_1_VERSION, SSL_OP_NO_TLSv1_1},
     {TLS1_2_VERSION, SSL_OP_NO_TLSv1_2},
     {TLS1_3_VERSION, SSL_OP_NO_TLSv1_3},
+    {NTLS_VERSION, SSL_OP_NO_NTLS},
 };
 
 bool ssl_get_version_range(const SSL_HANDSHAKE *hs, uint16_t *out_min_version,
@@ -189,6 +194,12 @@ bool ssl_get_version_range(const SSL_HANDSHAKE *hs, uint16_t *out_min_version,
                                       hs->config->conf_max_version)) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
     return false;
+  }
+
+  if (max_version == NTLS_VERSION) {
+    *out_min_version = min_version;
+    *out_max_version = max_version;
+    return true;
   }
 
   // QUIC requires TLS 1.3.
@@ -268,8 +279,9 @@ bool ssl_supports_version(const SSL_HANDSHAKE *hs, uint16_t version) {
   uint16_t protocol_version;
   if (!ssl_method_supports_version(ssl->method, version) ||
       !ssl_protocol_version_from_wire(&protocol_version, version) ||
-      hs->min_version > protocol_version ||
-      protocol_version > hs->max_version) {
+      ((protocol_version != NTLS_VERSION &&
+      (hs->min_version > protocol_version ||
+      protocol_version > hs->max_version)))) {
     return false;
   }
 
@@ -280,12 +292,23 @@ bool ssl_add_supported_versions(const SSL_HANDSHAKE *hs, CBB *cbb,
                                 uint16_t extra_min_version) {
   for (uint16_t version : get_method_versions(hs->ssl->method)) {
     uint16_t protocol_version;
-    if (ssl_supports_version(hs, version) &&
-        ssl_protocol_version_from_wire(&protocol_version, version) &&
-        protocol_version >= extra_min_version &&  //
-        !CBB_add_u16(cbb, version)) {
-      return false;
+    if(hs->min_version == NTLS_VERSION) {
+      if (ssl_supports_version(hs, version) &&
+          ssl_protocol_version_from_wire(&protocol_version, version) &&
+          protocol_version >= extra_min_version &&  //
+          !CBB_add_u16(cbb, version)) {
+        return false;
+      }
+    } else {
+      if (ssl_supports_version(hs, version) &&
+          ssl_protocol_version_from_wire(&protocol_version, version) &&
+          protocol_version >= extra_min_version &&  //
+          protocol_version != NTLS_VERSION &&
+          !CBB_add_u16(cbb, version)) {
+        return false;
+      }
     }
+
   }
   return true;
 }
