@@ -1165,7 +1165,7 @@ TEST(SSLTest, CipherProperties) {
       },
       {
           NTLS_CK_ECDHE_SM2_SM4_CBC_SM3,
-          "NTLS_ECDHE_SM2_SM4_CBC_SM3",
+          "ECDHE_SM4_CBC_SM3",
           NID_sm4_cbc,
           NID_sm3,
           NID_kx_sm2dhe,
