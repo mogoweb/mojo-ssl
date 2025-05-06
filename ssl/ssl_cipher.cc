@@ -1766,7 +1766,7 @@ const char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf,
       break;
 
     case SSL_SM3:
-      enc = "SM3";
+      mac = "SM3";
       break;
 
     default:

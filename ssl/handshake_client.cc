@@ -1808,8 +1808,6 @@ static bool can_false_start(const SSL_HANDSHAKE *hs) {
   if (SSL_is_dtls(ssl) ||
       SSL_version(ssl) != TLS1_2_VERSION ||
       hs->new_cipher->algorithm_mkey != SSL_kECDHE ||
-      hs->new_cipher->algorithm_mkey != SSL_kSM2 ||
-	    hs->new_cipher->algorithm_mkey != SSL_kSM2DHE ||
       hs->new_cipher->algorithm_mac != SSL_AEAD) {
     return false;
   }
