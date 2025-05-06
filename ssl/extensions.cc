@@ -310,7 +310,6 @@ static const uint16_t kDefaultGroups[] = {
     SSL_GROUP_X25519,
     SSL_GROUP_SECP256R1,
     SSL_GROUP_SECP384R1,
-    SSL_GROUP_SM2,
 };
 
 Span<const uint16_t> tls1_get_grouplist(const SSL_HANDSHAKE *hs) {
