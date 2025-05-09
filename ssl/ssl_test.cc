@@ -1436,7 +1436,7 @@ static bssl::UniquePtr<SSL_CTX> CreateContextWithTestCertificate(
   bssl::UniquePtr<EVP_PKEY> key = GetTestKey();
   if (!ctx || !cert || !key ||
       !SSL_CTX_use_certificate(ctx.get(), cert.get()) ||
-      !SSL_CTX_use_PrivateKey(ctx.get(), key.get())) {
+      !SSL_CTX_use_PrivateKey(ctx.get(), key.get(), false)) {
     return nullptr;
   }
   return ctx;
@@ -2787,7 +2787,7 @@ class SSLVersionTest : public ::testing::TestWithParam<VersionParam> {
 
   bool UseCertAndKey(SSL_CTX *ctx) const {
     return SSL_CTX_use_certificate(ctx, cert_.get()) &&
-           SSL_CTX_use_PrivateKey(ctx, key_.get());
+           SSL_CTX_use_PrivateKey(ctx, key_.get(), false);
   }
 
   bool Connect(const ClientConfig &config = ClientConfig()) {
@@ -3876,7 +3876,7 @@ TEST_P(SSLVersionTest, SNICallback) {
   bssl::UniquePtr<SSL_CTX> server_ctx2 = CreateContext();
   ASSERT_TRUE(server_ctx2);
   ASSERT_TRUE(SSL_CTX_use_certificate(server_ctx2.get(), cert2.get()));
-  ASSERT_TRUE(SSL_CTX_use_PrivateKey(server_ctx2.get(), key2.get()));
+  ASSERT_TRUE(SSL_CTX_use_PrivateKey(server_ctx2.get(), key2.get(), false));
   ASSERT_TRUE(SSL_CTX_set_signed_cert_timestamp_list(
       server_ctx2.get(), kSCTList, sizeof(kSCTList)));
   ASSERT_TRUE(SSL_CTX_set_ocsp_response(server_ctx2.get(), kOCSPResponse,
@@ -4657,7 +4657,7 @@ TEST(SSLTest, CertThenKeyMismatch) {
   EXPECT_FALSE(SSL_CTX_check_private_key(ctx.get()));
 
   // The private key does not match the certificate, so it should fail.
-  EXPECT_FALSE(SSL_CTX_use_PrivateKey(ctx.get(), key.get()));
+  EXPECT_FALSE(SSL_CTX_use_PrivateKey(ctx.get(), key.get(), false));
 
   // Checking the private key fails, but this is really because there is still
   // no private key.
@@ -4678,7 +4678,7 @@ TEST(SSLTest, KeyThenCertMismatch) {
   EXPECT_FALSE(SSL_CTX_check_private_key(ctx.get()));
 
   // With only a key, |SSL_CTX_check_private_key| still fails.
-  ASSERT_TRUE(SSL_CTX_use_PrivateKey(ctx.get(), key.get()));
+  ASSERT_TRUE(SSL_CTX_use_PrivateKey(ctx.get(), key.get(), false));
   EXPECT_FALSE(SSL_CTX_check_private_key(ctx.get()));
 
   // If configuring a certificate that doesn't match the key, configuration
@@ -4710,10 +4710,10 @@ TEST(SSLTest, OverrideCertAndKey) {
   ASSERT_TRUE(leaf2);
 
   ASSERT_TRUE(SSL_CTX_use_certificate(ctx.get(), leaf.get()));
-  ASSERT_TRUE(SSL_CTX_use_PrivateKey(ctx.get(), key.get()));
+  ASSERT_TRUE(SSL_CTX_use_PrivateKey(ctx.get(), key.get(), false));
 
   ASSERT_TRUE(SSL_CTX_use_certificate(ctx.get(), leaf2.get()));
-  ASSERT_TRUE(SSL_CTX_use_PrivateKey(ctx.get(), key2.get()));
+  ASSERT_TRUE(SSL_CTX_use_PrivateKey(ctx.get(), key2.get(), false));
 }
 
 TEST(SSLTest, OverrideKeyMethodWithKey) {
@@ -4741,7 +4741,7 @@ TEST(SSLTest, OverrideKeyMethodWithKey) {
   // Configuring an |SSL_PRIVATE_KEY_METHOD| and then overwriting it with an
   // |EVP_PKEY| should clear the |SSL_PRIVATE_KEY_METHOD|.
   SSL_CTX_set_private_key_method(ctx.get(), &kErrorMethod);
-  ASSERT_TRUE(SSL_CTX_use_PrivateKey(ctx.get(), key.get()));
+  ASSERT_TRUE(SSL_CTX_use_PrivateKey(ctx.get(), key.get(), false));
 
   bssl::UniquePtr<SSL> client, server;
   ASSERT_TRUE(ConnectClientAndServer(&client, &server, ctx.get(), ctx.get()));
@@ -4769,7 +4769,7 @@ TEST(SSLTest, OverrideChain) {
   bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
   ASSERT_TRUE(ctx);
   ASSERT_TRUE(SSL_CTX_use_certificate(ctx.get(), leaf.get()));
-  ASSERT_TRUE(SSL_CTX_use_PrivateKey(ctx.get(), key.get()));
+  ASSERT_TRUE(SSL_CTX_use_PrivateKey(ctx.get(), key.get(), false));
 
   // Configure one chain, then replace it with another. Note this API considers
   // the chain to exclude the leaf.
@@ -8127,7 +8127,7 @@ TEST(SSLTest, ConnectionPropertiesDuringRenegotiate) {
   bssl::UniquePtr<EVP_PKEY> key = GetTestKey();
   ASSERT_TRUE(key);
   ASSERT_TRUE(SSL_CTX_use_certificate(ctx.get(), cert.get()));
-  ASSERT_TRUE(SSL_CTX_use_PrivateKey(ctx.get(), key.get()));
+  ASSERT_TRUE(SSL_CTX_use_PrivateKey(ctx.get(), key.get(), false));
   ASSERT_TRUE(SSL_CTX_set_min_proto_version(ctx.get(), TLS1_2_VERSION));
   ASSERT_TRUE(SSL_CTX_set_max_proto_version(ctx.get(), TLS1_2_VERSION));
   ASSERT_TRUE(SSL_CTX_set_strict_cipher_list(
@@ -8341,7 +8341,7 @@ TEST(SSLTest, ALPNConfig) {
   ASSERT_TRUE(cert);
   ASSERT_TRUE(key);
   ASSERT_TRUE(SSL_CTX_use_certificate(ctx.get(), cert.get()));
-  ASSERT_TRUE(SSL_CTX_use_PrivateKey(ctx.get(), key.get()));
+  ASSERT_TRUE(SSL_CTX_use_PrivateKey(ctx.get(), key.get(), false));
 
   // Set up some machinery to check the configured ALPN against what is actually
   // sent over the wire. Note that the ALPN callback is only called when the
@@ -8851,7 +8851,7 @@ RVHWbCvFvNZAoWiIJ2z34RLGInyZvCZ8xLAvsuaWULDDaoeDl1M0t4Hm
     bssl::UniquePtr<SSL_CTX> server_ctx(SSL_CTX_new(TLS_method()));
     ASSERT_TRUE(server_ctx);
     ASSERT_TRUE(SSL_CTX_use_certificate(server_ctx.get(), test.cert));
-    ASSERT_TRUE(SSL_CTX_use_PrivateKey(server_ctx.get(), key.get()));
+    ASSERT_TRUE(SSL_CTX_use_PrivateKey(server_ctx.get(), key.get(), false));
 
     ClientConfig config;
     bssl::UniquePtr<SSL> client, server;
@@ -8873,7 +8873,7 @@ TEST(SSLTest, NumTickets) {
   bssl::UniquePtr<EVP_PKEY> key = GetTestKey();
   ASSERT_TRUE(key);
   ASSERT_TRUE(SSL_CTX_use_certificate(server_ctx.get(), cert.get()));
-  ASSERT_TRUE(SSL_CTX_use_PrivateKey(server_ctx.get(), key.get()));
+  ASSERT_TRUE(SSL_CTX_use_PrivateKey(server_ctx.get(), key.get(), false));
   SSL_CTX_set_session_cache_mode(server_ctx.get(), SSL_SESS_CACHE_BOTH);
 
   SSL_CTX_set_session_cache_mode(client_ctx.get(), SSL_SESS_CACHE_BOTH);
@@ -9366,7 +9366,7 @@ TEST_P(SSLVersionTest, NoCertOrKey) {
         ASSERT_TRUE(SSL_CTX_use_certificate(ctx, cert.get()));
       }
       if (t.has_key) {
-        ASSERT_TRUE(SSL_CTX_use_PrivateKey(ctx, key.get()));
+        ASSERT_TRUE(SSL_CTX_use_PrivateKey(ctx, key.get(), false));
       }
       if (t.has_chain) {
         ASSERT_TRUE(SSL_CTX_set1_chain(ctx, chain.get()));

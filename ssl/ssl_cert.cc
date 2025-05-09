@@ -136,6 +136,7 @@ BSSL_NAMESPACE_BEGIN
 
 CERT::CERT(const SSL_X509_METHOD *x509_method_arg)
     : default_credential(MakeUnique<SSL_CREDENTIAL>(SSLCredentialType::kX509)),
+      enc_credential(MakeUnique<SSL_CREDENTIAL>(SSLCredentialType::kX509)),
       x509_method(x509_method_arg) {}
 
 CERT::~CERT() { x509_method->cert_free(this); }
@@ -157,6 +158,11 @@ UniquePtr<CERT> ssl_cert_dup(CERT *cert) {
   // bump the reference count.
   ret->default_credential = cert->default_credential->Dup();
   if (ret->default_credential == nullptr) {
+    return nullptr;
+  }
+
+  ret->enc_credential = cert->enc_credential->Dup();
+  if (ret->enc_credential == nullptr) {
     return nullptr;
   }
 
@@ -208,6 +214,19 @@ static int cert_set_chain_and_key(
 }
 
 bool ssl_set_cert(CERT *cert, UniquePtr<CRYPTO_BUFFER> buffer) {
+  // Don't fail for a cert/key mismatch, just free the current private key.
+  // (When switching to a different keypair, the caller should switch the
+  // certificate, then the key.)
+  if (!cert->default_credential->SetLeafCert(
+          std::move(buffer), /*discard_key_on_mismatch=*/true)) {
+    return false;
+  }
+
+  cert->x509_method->cert_flush_cached_leaf(cert);
+  return true;
+}
+
+bool ssl_set_enc_cert(CERT *cert, UniquePtr<CRYPTO_BUFFER> buffer) {
   // Don't fail for a cert/key mismatch, just free the current private key.
   // (When switching to a different keypair, the caller should switch the
   // certificate, then the key.)
@@ -533,7 +552,7 @@ bool ssl_check_leaf_certificate(SSL_HANDSHAKE *hs, EVP_PKEY *pkey,
     return false;
   }
 
-  if (EVP_PKEY_id(pkey) == EVP_PKEY_EC) {
+  if (EVP_PKEY_id(pkey) == EVP_PKEY_EC || EVP_PKEY_id(pkey) == EVP_PKEY_SM2) {
     // Check the key's group and point format are acceptable.
     EC_KEY *ec_key = EVP_PKEY_get0_EC_KEY(pkey);
     uint16_t group_id;

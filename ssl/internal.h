@@ -2493,6 +2493,8 @@ struct CERT {
   // the list of credentials.
   UniquePtr<SSL_CREDENTIAL> default_credential;
 
+  UniquePtr<SSL_CREDENTIAL> enc_credential;
+
   // x509_method contains pointers to functions that might deal with |X509|
   // compatibility, or might be a no-op, depending on the application.
   const SSL_X509_METHOD *x509_method = nullptr;

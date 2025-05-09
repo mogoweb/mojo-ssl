@@ -115,6 +115,16 @@ static const struct argument kArguments[] = {
         "argument is not provided.",
     },
     {
+        "-enc_key", kOptionalArgument,
+        "PEM-encoded file containing the private key(for encryption).",
+    },
+    {
+        "-enc_cert", kOptionalArgument,
+        "PEM-encoded file containing the leaf certificate and optional "
+        "certificate chain(for encryption). This is taken from the -key argument if this "
+        "argument is not provided.",
+    },
+    {
         "-starttls", kOptionalArgument,
         "A STARTTLS mini-protocol to run before the TLS handshake. Supported"
         " values: 'smtp'",
@@ -518,13 +528,29 @@ bool Client(const std::vector<std::string> &args) {
   if (args_map.count("-key") != 0) {
     const std::string &key = args_map["-key"];
     if (!SSL_CTX_use_PrivateKey_file(ctx.get(), key.c_str(),
-                                     SSL_FILETYPE_PEM)) {
+                                     SSL_FILETYPE_PEM, false)) {
       fprintf(stderr, "Failed to load private key: %s\n", key.c_str());
       return false;
     }
     const std::string &cert =
         args_map.count("-cert") != 0 ? args_map["-cert"] : key;
-    if (!SSL_CTX_use_certificate_chain_file(ctx.get(), cert.c_str())) {
+    if (!SSL_CTX_use_certificate_chain_file(ctx.get(), cert.c_str(), false)) {
+      fprintf(stderr, "Failed to load cert chain: %s\n", cert.c_str());
+      return false;
+    }
+  }
+
+  // for NTLS double certificates
+  if (args_map.count("-enc_key") != 0) {
+    const std::string &key = args_map["-enc_key"];
+    if (!SSL_CTX_use_PrivateKey_file(ctx.get(), key.c_str(),
+                                     SSL_FILETYPE_PEM, true)) {
+      fprintf(stderr, "Failed to load private key: %s\n", key.c_str());
+      return false;
+    }
+    const std::string &cert =
+        args_map.count("-enc_cert") != 0 ? args_map["-enc_cert"] : key;
+    if (!SSL_CTX_use_certificate_chain_file(ctx.get(), cert.c_str(), true)) {
       fprintf(stderr, "Failed to load cert chain: %s\n", cert.c_str());
       return false;
     }

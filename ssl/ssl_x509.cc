@@ -715,6 +715,11 @@ int SSL_CTX_use_certificate(SSL_CTX *ctx, X509 *x) {
   return ssl_use_certificate(ctx->cert.get(), x);
 }
 
+int SSL_CTX_use_enc_certificate(SSL_CTX *ctx, X509 *x) {
+  check_ssl_ctx_x509_method(ctx);
+  return ssl_use_certificate(ctx->enc_cert.get(), x);
+}
+
 // ssl_cert_cache_leaf_cert sets |cert->x509_leaf|, if currently NULL, from the
 // first element of |cert->chain|.
 static int ssl_cert_cache_leaf_cert(CERT *cert) {
@@ -819,6 +824,11 @@ int SSL_set1_chain(SSL *ssl, STACK_OF(X509) *chain) {
 int SSL_CTX_add0_chain_cert(SSL_CTX *ctx, X509 *x509) {
   check_ssl_ctx_x509_method(ctx);
   return ssl_cert_add0_chain_cert(ctx->cert.get(), x509);
+}
+
+int SSL_CTX_add0_chain_enc_cert(SSL_CTX *ctx, X509 *x509) {
+  check_ssl_ctx_x509_method(ctx);
+  return ssl_cert_add0_chain_cert(ctx->enc_cert.get(), x509);
 }
 
 int SSL_CTX_add1_chain_cert(SSL_CTX *ctx, X509 *x509) {

@@ -394,7 +394,7 @@ int SSL_CTX_use_RSAPrivateKey(SSL_CTX *ctx, RSA *rsa) {
     return 0;
   }
 
-  return SSL_CTX_use_PrivateKey(ctx, pkey.get());
+  return SSL_CTX_use_PrivateKey(ctx, pkey.get(), false);
 }
 
 int SSL_CTX_use_RSAPrivateKey_ASN1(SSL_CTX *ctx, const uint8_t *der,
@@ -408,11 +408,15 @@ int SSL_CTX_use_RSAPrivateKey_ASN1(SSL_CTX *ctx, const uint8_t *der,
   return SSL_CTX_use_RSAPrivateKey(ctx, rsa.get());
 }
 
-int SSL_CTX_use_PrivateKey(SSL_CTX *ctx, EVP_PKEY *pkey) {
+int SSL_CTX_use_PrivateKey(SSL_CTX *ctx, EVP_PKEY *pkey, int if_enc) {
   if (pkey == NULL) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_PASSED_NULL_PARAMETER);
     return 0;
   }
+
+  if (if_enc)
+    return SSL_CREDENTIAL_set1_private_key(ctx->cert->enc_credential.get(),
+                                           pkey);
 
   return SSL_CREDENTIAL_set1_private_key(ctx->cert->default_credential.get(),
                                          pkey);
@@ -432,7 +436,7 @@ int SSL_CTX_use_PrivateKey_ASN1(int type, SSL_CTX *ctx, const uint8_t *der,
     return 0;
   }
 
-  return SSL_CTX_use_PrivateKey(ctx, pkey.get());
+  return SSL_CTX_use_PrivateKey(ctx, pkey.get(), false);
 }
 
 void SSL_set_private_key_method(SSL *ssl,

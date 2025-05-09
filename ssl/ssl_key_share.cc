@@ -289,6 +289,7 @@ constexpr NamedGroup kNamedGroups[] = {
     {NID_X25519, SSL_GROUP_X25519, "X25519", "x25519"},
     {NID_X25519Kyber768Draft00, SSL_GROUP_X25519_KYBER768_DRAFT00,
      "X25519Kyber768Draft00", ""},
+    {NID_sm2, SSL_CURVE_SM2, "SM2DHE", "SM2DHE"},
 };
 
 }  // namespace
@@ -311,6 +312,8 @@ UniquePtr<SSLKeyShare> SSLKeyShare::Create(uint16_t group_id) {
       return MakeUnique<X25519KeyShare>();
     case SSL_GROUP_X25519_KYBER768_DRAFT00:
       return MakeUnique<X25519Kyber768KeyShare>();
+    case SSL_CURVE_SM2:
+      return MakeUnique<ECKeyShare>(EC_group_sm2(), SSL_GROUP_SM2);
     default:
       return nullptr;
   }

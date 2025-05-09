@@ -258,13 +258,13 @@ bool Server(const std::vector<std::string> &args) {
   if (args_map.count("-key") != 0) {
     std::string key = args_map["-key"];
     if (!SSL_CTX_use_PrivateKey_file(ctx.get(), key.c_str(),
-                                     SSL_FILETYPE_PEM)) {
+                                     SSL_FILETYPE_PEM, false)) {
       fprintf(stderr, "Failed to load private key: %s\n", key.c_str());
       return false;
     }
     const std::string &cert =
         args_map.count("-cert") != 0 ? args_map["-cert"] : key;
-    if (!SSL_CTX_use_certificate_chain_file(ctx.get(), cert.c_str())) {
+    if (!SSL_CTX_use_certificate_chain_file(ctx.get(), cert.c_str(), false)) {
       fprintf(stderr, "Failed to load cert chain: %s\n", cert.c_str());
       return false;
     }
@@ -278,7 +278,7 @@ bool Server(const std::vector<std::string> &args) {
     if (!cert) {
       return false;
     }
-    if (!SSL_CTX_use_PrivateKey(ctx.get(), evp_pkey.get())) {
+    if (!SSL_CTX_use_PrivateKey(ctx.get(), evp_pkey.get(), false)) {
       fprintf(stderr, "Failed to set private key.\n");
       return false;
     }

@@ -999,6 +999,7 @@ OPENSSL_EXPORT const SSL_CREDENTIAL *SSL_get0_selected_credential(
 // one on success and zero on failure. If |ctx| has a private key which is
 // inconsistent with |x509|, the private key is silently dropped.
 OPENSSL_EXPORT int SSL_CTX_use_certificate(SSL_CTX *ctx, X509 *x509);
+OPENSSL_EXPORT int SSL_CTX_use_enc_certificate(SSL_CTX *ctx, X509 *x509);
 
 // SSL_use_certificate sets |ssl|'s leaf certificate to |x509|. It returns one
 // on success and zero on failure. If |ssl| has a private key which is
@@ -1008,7 +1009,7 @@ OPENSSL_EXPORT int SSL_use_certificate(SSL *ssl, X509 *x509);
 // SSL_CTX_use_PrivateKey sets |ctx|'s private key to |pkey|. It returns one on
 // success and zero on failure. If |ctx| had a private key or
 // |SSL_PRIVATE_KEY_METHOD| previously configured, it is replaced.
-OPENSSL_EXPORT int SSL_CTX_use_PrivateKey(SSL_CTX *ctx, EVP_PKEY *pkey);
+OPENSSL_EXPORT int SSL_CTX_use_PrivateKey(SSL_CTX *ctx, EVP_PKEY *pkey, int if_enc);
 
 // SSL_use_PrivateKey sets |ssl|'s private key to |pkey|. It returns one on
 // success and zero on failure. If |ssl| had a private key or
@@ -1039,6 +1040,7 @@ OPENSSL_EXPORT int SSL_set1_chain(SSL *ssl, STACK_OF(X509) *chain);
 // success, it returns one and takes ownership of |x509|. Otherwise, it returns
 // zero.
 OPENSSL_EXPORT int SSL_CTX_add0_chain_cert(SSL_CTX *ctx, X509 *x509);
+OPENSSL_EXPORT int SSL_CTX_add0_chain_enc_cert(SSL_CTX *ctx, X509 *x509);
 
 // SSL_CTX_add1_chain_cert appends |x509| to |ctx|'s certificate chain. It
 // returns one on success and zero on failure. The caller retains ownership of
@@ -1359,7 +1361,7 @@ OPENSSL_EXPORT int SSL_use_certificate_file(SSL *ssl, const char *file,
                                             int type);
 
 OPENSSL_EXPORT int SSL_CTX_use_PrivateKey_file(SSL_CTX *ctx, const char *file,
-                                               int type);
+                                               int type, int if_enc);
 OPENSSL_EXPORT int SSL_use_PrivateKey_file(SSL *ssl, const char *file,
                                            int type);
 
@@ -1373,7 +1375,7 @@ OPENSSL_EXPORT int SSL_use_PrivateKey_file(SSL *ssl, const char *file,
 // input to this function allows an attacker to influence those properties. See
 // |d2i_X509_AUX| for details.
 OPENSSL_EXPORT int SSL_CTX_use_certificate_chain_file(SSL_CTX *ctx,
-                                                      const char *file);
+                                                      const char *file, int if_enc);
 
 // SSL_CTX_set_default_passwd_cb sets the password callback for PEM-based
 // convenience functions called on |ctx|.

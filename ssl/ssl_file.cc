@@ -432,7 +432,7 @@ end:
   return ret;
 }
 
-int SSL_CTX_use_PrivateKey_file(SSL_CTX *ctx, const char *file, int type) {
+int SSL_CTX_use_PrivateKey_file(SSL_CTX *ctx, const char *file, int type, int if_enc) {
   int reason_code, ret = 0;
   BIO *in;
   EVP_PKEY *pkey = NULL;
@@ -464,7 +464,7 @@ int SSL_CTX_use_PrivateKey_file(SSL_CTX *ctx, const char *file, int type) {
     OPENSSL_PUT_ERROR(SSL, reason_code);
     goto end;
   }
-  ret = SSL_CTX_use_PrivateKey(ctx, pkey);
+  ret = SSL_CTX_use_PrivateKey(ctx, pkey, if_enc);
   EVP_PKEY_free(pkey);
 
 end:
@@ -475,7 +475,7 @@ end:
 // Read a file that contains our certificate in "PEM" format, possibly followed
 // by a sequence of CA certificates that should be sent to the peer in the
 // Certificate message.
-int SSL_CTX_use_certificate_chain_file(SSL_CTX *ctx, const char *file) {
+int SSL_CTX_use_certificate_chain_file(SSL_CTX *ctx, const char *file, int if_enc) {
   BIO *in;
   int ret = 0;
   X509 *x = NULL;
@@ -500,7 +500,10 @@ int SSL_CTX_use_certificate_chain_file(SSL_CTX *ctx, const char *file) {
     goto end;
   }
 
-  ret = SSL_CTX_use_certificate(ctx, x);
+  if (if_enc)
+    ret = SSL_CTX_use_enc_certificate(ctx, x);
+  else
+    ret = SSL_CTX_use_certificate(ctx, x);
 
   if (ERR_peek_error() != 0) {
     ret = 0;  // Key/certificate mismatch doesn't imply ret==0 ...
@@ -518,7 +521,10 @@ int SSL_CTX_use_certificate_chain_file(SSL_CTX *ctx, const char *file) {
     while ((ca = PEM_read_bio_X509(in, NULL, ctx->default_passwd_callback,
                                    ctx->default_passwd_callback_userdata)) !=
            NULL) {
-      r = SSL_CTX_add0_chain_cert(ctx, ca);
+      if (if_enc)
+        r = SSL_CTX_add0_chain_enc_cert(ctx, ca);
+      else
+        r = SSL_CTX_add0_chain_cert(ctx, ca);
       if (!r) {
         X509_free(ca);
         ret = 0;
