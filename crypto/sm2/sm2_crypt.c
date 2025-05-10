@@ -17,7 +17,6 @@
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
 #include <openssl/bn.h>
-#include <openssl/ecdh.h> /* ossl_ecdh_kdf_X9_63() */
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/mem.h>
@@ -25,6 +24,7 @@
 
 #include <string.h>
 
+#include "../internal.h"
 
 typedef struct SM2_Ciphertext_st SM2_Ciphertext;
 
@@ -70,6 +70,52 @@ static size_t ec_field_size(const EC_GROUP *group)
   BN_free(b);
 
   return field_size;
+}
+
+// implements KDF(Z, klen) in GB/T 32918.4 - 2016
+static void *x963_kdf(const EVP_MD *md, const void *in, size_t inlen, void *out, size_t *outlen) {
+  void *ret = NULL;
+  EVP_MD_CTX *ctx = NULL;
+  uint32_t counter = 1;
+  uint8_t counter_be[4];
+  unsigned char dgst[EVP_MAX_MD_SIZE];
+  unsigned int dgstlen;
+  unsigned char *pout = out;
+  size_t rlen = *outlen;
+  size_t len;
+
+  if (!(ctx = EVP_MD_CTX_new())) {
+    goto end;
+  }
+
+  while (rlen > 0) {
+
+    CRYPTO_store_u32_be(counter_be, counter);
+    counter++;
+
+    if (!EVP_DigestInit(ctx, md)) {
+      goto end;
+    }
+    if (!EVP_DigestUpdate(ctx, in, inlen)) {
+      goto end;
+    }
+    if (!EVP_DigestUpdate(ctx, counter_be, sizeof(counter_be))) {
+      goto end;
+    }
+    if (!EVP_DigestFinal(ctx, dgst, &dgstlen)) {
+      goto end;
+    }
+
+    len = dgstlen <= rlen ? dgstlen : rlen;
+    memcpy(pout, dgst, len);
+    rlen -= len;
+    pout += len;
+  }
+
+  ret = out;
+end:
+  EVP_MD_CTX_free(ctx);
+  return ret;
 }
 
 int ossl_sm2_plaintext_size(const unsigned char *ct, size_t ct_size,
@@ -207,8 +253,7 @@ int ossl_sm2_encrypt(const EC_KEY *key,
   }
 
   /* X9.63 with no salt happens to match the KDF used in SM2 */
-  if (!ossl_ecdh_kdf_X9_63(msg_mask, msg_len, x2y2, 2 * field_size, NULL, 0,
-                           digest/*, libctx, propq*/)) {
+  if (!x963_kdf(digest, x2y2, 2 * field_size, msg_mask, &msg_len)) {
     OPENSSL_PUT_ERROR(SM2, ERR_R_EVP_LIB);
     goto done;
   }
@@ -226,8 +271,8 @@ int ossl_sm2_encrypt(const EC_KEY *key,
     goto done;
   }
 
-  ctext_struct.C1x = BN_to_ASN1_INTEGER(x1, ctext_struct.C1x);
-  ctext_struct.C1y = BN_to_ASN1_INTEGER(y1, ctext_struct.C1y);
+  ctext_struct.C1x = BN_to_ASN1_INTEGER(x1, NULL);
+  ctext_struct.C1y = BN_to_ASN1_INTEGER(y1, NULL);
   ctext_struct.C3 = ASN1_OCTET_STRING_new();
   ctext_struct.C2 = ASN1_OCTET_STRING_new();
 
@@ -252,6 +297,7 @@ int ossl_sm2_encrypt(const EC_KEY *key,
   rc = 1;
 
  done:
+  BN_CTX_end(ctx);
   ASN1_OCTET_STRING_free(ctext_struct.C2);
   ASN1_OCTET_STRING_free(ctext_struct.C3);
   OPENSSL_free(msg_mask);
@@ -270,7 +316,7 @@ int ossl_sm2_decrypt(const EC_KEY *key,
                      uint8_t *ptext_buf, size_t *ptext_len)
 {
   int rc = 0;
-  int i;
+  size_t i;
   BN_CTX *ctx = NULL;
   const EC_GROUP *group = EC_KEY_get0_group(key);
   EC_POINT *C1 = NULL;
@@ -284,7 +330,7 @@ int ossl_sm2_decrypt(const EC_KEY *key,
   uint8_t *msg_mask = NULL;
   const uint8_t *C2 = NULL;
   const uint8_t *C3 = NULL;
-  int msg_len = 0;
+  size_t msg_len = 0;
   EVP_MD_CTX *hash = NULL;
   BIGNUM* C1x = NULL;
   BIGNUM* C1y = NULL;
@@ -309,7 +355,7 @@ int ossl_sm2_decrypt(const EC_KEY *key,
   C2 = sm2_ctext->C2->data;
   C3 = sm2_ctext->C3->data;
   msg_len = sm2_ctext->C2->length;
-  if (*ptext_len < (size_t)msg_len) {
+  if (*ptext_len < msg_len) {
     OPENSSL_PUT_ERROR(SM2, SM2_R_BUFFER_TOO_SMALL);
     goto done;
   }
@@ -344,8 +390,8 @@ int ossl_sm2_decrypt(const EC_KEY *key,
     goto done;
   }
 
-  C1x = ASN1_INTEGER_to_BN(sm2_ctext->C1x, C1x);
-  C1y = ASN1_INTEGER_to_BN(sm2_ctext->C1y, C1y);
+  C1x = ASN1_INTEGER_to_BN(sm2_ctext->C1x, NULL);
+  C1y = ASN1_INTEGER_to_BN(sm2_ctext->C1y, NULL);
   if (!EC_POINT_set_affine_coordinates(group, C1, C1x,
                                        C1y, ctx)
       || !EC_POINT_mul(group, C1, NULL, C1, EC_KEY_get0_private_key(key),
@@ -357,8 +403,7 @@ int ossl_sm2_decrypt(const EC_KEY *key,
 
   if (BN_bn2binpad(x2, x2y2, field_size) < 0
       || BN_bn2binpad(y2, x2y2 + field_size, field_size) < 0
-      || !ossl_ecdh_kdf_X9_63(msg_mask, msg_len, x2y2, 2 * field_size,
-                              NULL, 0, digest)) {
+      || !x963_kdf(digest, x2y2, 2 * field_size, msg_mask, &msg_len)) {
     OPENSSL_PUT_ERROR(SM2, ERR_R_INTERNAL_ERROR);
     goto done;
   }
@@ -390,8 +435,9 @@ int ossl_sm2_decrypt(const EC_KEY *key,
   *ptext_len = msg_len;
 
  done:
+  BN_CTX_end(ctx);
   if (rc == 0)
-      memset(ptext_buf, 0, *ptext_len);
+    memset(ptext_buf, 0, *ptext_len);
 
   OPENSSL_free(msg_mask);
   OPENSSL_free(x2y2);

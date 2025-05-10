@@ -748,6 +748,7 @@ crypto_test_sources = [
   "crypto/rsa_extra/rsa_test.cc",
   "crypto/self_test.cc",
   "crypto/siphash/siphash_test.cc",
+  "crypto/sm2/sm2_test.cc",
   "crypto/sm3/sm3_test.cc",
   "crypto/sm4/sm4_test.cc",
   "crypto/spx/spx_test.cc",

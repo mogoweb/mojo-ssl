@@ -128,33 +128,3 @@ int ECDH_compute_key_fips(uint8_t *out, size_t out_len, const EC_POINT *pub_key,
   ECDH_verify_service_indicator(priv_key);
   return 1;
 }
-
-/* Key derivation function from X9.63/SECG */
-int ossl_ecdh_kdf_X9_63(unsigned char *out, size_t outlen,
-                        const unsigned char *Z, size_t Zlen,
-                        const unsigned char *sinfo, size_t sinfolen,
-                        const EVP_MD *md)
-{
-    int ret = 0;
-#if 0  // TODO:(alex)
-    EVP_KDF_CTX *kctx = NULL;
-    OSSL_PARAM params[4], *p = params;
-    const char *mdname = EVP_MD_get0_name(md);
-    EVP_KDF *kdf = EVP_KDF_fetch(libctx, OSSL_KDF_NAME_X963KDF, propq);
-
-    if ((kctx = EVP_KDF_CTX_new(kdf)) != NULL) {
-        *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST,
-                                                (char *)mdname, 0);
-        *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY,
-                                                 (void *)Z, Zlen);
-        *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_INFO,
-                                                 (void *)sinfo, sinfolen);
-        *p = OSSL_PARAM_construct_end();
-
-        ret = EVP_KDF_derive(kctx, out, outlen, params) > 0;
-        EVP_KDF_CTX_free(kctx);
-    }
-    EVP_KDF_free(kdf);
-#endif
-    return ret;
-}
