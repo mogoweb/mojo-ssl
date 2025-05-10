@@ -472,6 +472,16 @@ static constexpr SSL_CIPHER kCiphers[] = {
      SSL_SM3,
      SSL_HANDSHAKE_MAC_SM3,
     },
+    {
+     NTLS_TXT_SM2_WITH_SM4_SM3,
+     NTLS_GB_ECC_SM2_SM4_CBC_SM3,   // name of GB/T 38636-2020
+     NTLS_CK_ECC_SM2_SM4_CBC_SM3,
+     SSL_kSM2,
+     SSL_aSM2,
+     SSL_SM4,
+     SSL_SM3,
+     SSL_HANDSHAKE_MAC_SM3,
+    },
 
 };
 
@@ -1203,6 +1213,7 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
   };
   static const uint16_t kNTLSCiphers[] = {
       NTLS_CK_ECDHE_SM2_SM4_CBC_SM3 & 0xffff,
+      NTLS_CK_ECC_SM2_SM4_CBC_SM3 & 0xffff,
   };
 
   // Set up a linked list of ciphers.

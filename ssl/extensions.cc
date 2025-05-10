@@ -1887,7 +1887,7 @@ static bool ext_ec_point_add_serverhello(SSL_HANDSHAKE *hs, CBB *out) {
 
   const uint32_t alg_k = hs->new_cipher->algorithm_mkey;
   const uint32_t alg_a = hs->new_cipher->algorithm_auth;
-  const bool using_ecc = (alg_k & SSL_kECDHE) || (alg_a & SSL_aECDSA);
+  const bool using_ecc = (alg_k & SSL_kECDHE) || (alg_a & SSL_aECDSA) || (alg_k & SSL_kSM2) || (alg_a & SSL_aSM2);
 
   if (!using_ecc) {
     return true;
@@ -4112,6 +4112,9 @@ bool tls1_get_legacy_signature_algorithm(uint16_t *out, const EVP_PKEY *pkey) {
       return true;
     case EVP_PKEY_EC:
       *out = SSL_SIGN_ECDSA_SHA1;
+      return true;
+    case EVP_PKEY_SM2:
+      *out = SSL_SIGN_SM2;
       return true;
     default:
       return false;

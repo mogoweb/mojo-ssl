@@ -155,6 +155,7 @@
 
 #include <algorithm>
 #include <utility>
+#include <vector>
 
 #include <openssl/aead.h>
 #include <openssl/bn.h>
@@ -168,8 +169,10 @@
 #include <openssl/mem.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
+#include <openssl/sm2.h>
 #include <openssl/x509v3.h>
 
+#include "../crypto/evp/internal.h"
 #include "../crypto/internal.h"
 #include "internal.h"
 
@@ -935,10 +938,6 @@ static enum ssl_hs_wait_t do_tls13(SSL_HANDSHAKE *hs) {
 
 static enum ssl_hs_wait_t do_read_server_certificate(SSL_HANDSHAKE *hs) {
   SSL *const ssl = hs->ssl;
-  STACK_OF(X509) *sk = NULL;
-  CBS certificate_list;
-  const uint8_t *data;
-  X509 *x = NULL;
 
   if (!ssl_cipher_uses_certificate_auth(hs->new_cipher)) {
     hs->state = state_read_certificate_status;
@@ -956,6 +955,7 @@ static enum ssl_hs_wait_t do_read_server_certificate(SSL_HANDSHAKE *hs) {
   }
 
   CBS body = msg.body;
+  // cannot reuse body variable because CBS inner pointer advances after reading
   CBS body1 = msg.body;
   uint8_t alert = SSL_AD_DECODE_ERROR;
   if (!ssl_parse_cert_chain(&alert, &hs->new_session->certs, &hs->peer_pubkey,
@@ -980,61 +980,59 @@ static enum ssl_hs_wait_t do_read_server_certificate(SSL_HANDSHAKE *hs) {
   }
 
   if (ssl_protocol_version(ssl) == NTLS_VERSION) {
-	  sk = sk_X509_new_null();
-	  if (sk == NULL) {
-	    OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
-	    ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
-	    return ssl_hs_error;
-	  }
+    STACK_OF(X509) *sk = sk_X509_new_null();
+    if (sk == NULL) {
+      OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
+      ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
+      return ssl_hs_error;
+    }
 
-	  if (!CBS_get_u24_length_prefixed(&body1, &certificate_list) ||
-	      CBS_len(&certificate_list) == 0 || CBS_len(&body1) != 0) {
-	    OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
-	    ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
-	    return ssl_hs_error;
-	  }
+    CBS certificate_list;
+    if (!CBS_get_u24_length_prefixed(&body1, &certificate_list) ||
+        CBS_len(&certificate_list) == 0 || CBS_len(&body1) != 0) {
+      OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
+      ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
+      return ssl_hs_error;
+    }
 
-	  while (CBS_len(&certificate_list) > 0) {
-	    CBS certificate;
-	    if (!CBS_get_u24_length_prefixed(&certificate_list, &certificate)) {
-	      OPENSSL_PUT_ERROR(SSL, SSL_R_CERT_LENGTH_MISMATCH);
-	      ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
-	      return ssl_hs_error;
-	    }
+    while (CBS_len(&certificate_list) > 0) {
+      CBS certificate;
+      if (!CBS_get_u24_length_prefixed(&certificate_list, &certificate)) {
+        OPENSSL_PUT_ERROR(SSL, SSL_R_CERT_LENGTH_MISMATCH);
+        ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
+        return ssl_hs_error;
+      }
 
-	    data = CBS_data(&certificate);
-	    x = d2i_X509(NULL, &data, (long)CBS_len(&certificate));
+      const uint8_t *data = CBS_data(&certificate);
+      X509 *x = d2i_X509(NULL, &data, (long)CBS_len(&certificate));
+      if (x == NULL) {
+        OPENSSL_PUT_ERROR(SSL, ERR_R_ASN1_LIB);
+        ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
+        return ssl_hs_error;
+      }
+      if (data != CBS_data(&certificate) + CBS_len(&certificate)) {
+        OPENSSL_PUT_ERROR(SSL, SSL_R_CERT_LENGTH_MISMATCH);
+        ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
+        return ssl_hs_error;
+      }
+      if (!sk_X509_push(sk, x)) {
+        OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
+        ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
+        return ssl_hs_error;
+      }
+      x = NULL;
+    }
 
-	    if (x == NULL) {
-	      OPENSSL_PUT_ERROR(SSL, ERR_R_ASN1_LIB);
-	      ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
-	      return ssl_hs_error;
-	    }
-	    if (data != CBS_data(&certificate) + CBS_len(&certificate)) {
-	      OPENSSL_PUT_ERROR(SSL, SSL_R_CERT_LENGTH_MISMATCH);
-	      ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
-	      return ssl_hs_error;
-	    }
-	    if (!sk_X509_push(sk, x)) {
-	      OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
-	      ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
-	      return ssl_hs_error;
-	    }
-	    x = NULL;
-	  }
+    X509 *leaf = sk_X509_value(sk, 0);
 
-	  X509 *leaf = sk_X509_value(sk, 0);
+    sk_X509_pop_free(hs->new_session->x509_chain, X509_free);
+    hs->new_session->x509_chain = sk;
+    sk = NULL;
 
-	  /* NOTE: Unlike the server half, the client's copy of |cert_chain| includes
-	   * the leaf. */
-	  sk_X509_pop_free(hs->new_session->x509_chain, X509_free);
-	  hs->new_session->x509_chain = sk;
-	  sk = NULL;
-
-	  X509_free(hs->new_session->x509_peer);
-	  X509_up_ref(leaf);
-	  hs->new_session->x509_peer = leaf;
-	}
+    X509_free(hs->new_session->x509_peer);
+    X509_up_ref(leaf);
+    hs->new_session->x509_peer = leaf;
+  }
 
   ssl->method->next_message(ssl);
 
@@ -1193,6 +1191,7 @@ static enum ssl_hs_wait_t do_read_server_key_exchange(SSL_HANDSHAKE *hs) {
     hs->peer_psk_identity_hint.reset(raw);
   }
 
+  std::vector<uint8_t> cert_buf;
   if (alg_k & SSL_kECDHE || alg_k & SSL_kSM2DHE) {
     // Parse the server parameters.
     uint8_t group_type;
@@ -1219,6 +1218,38 @@ static enum ssl_hs_wait_t do_read_server_key_exchange(SSL_HANDSHAKE *hs) {
     if (!hs->peer_key.CopyFrom(point)) {
       return ssl_hs_error;
     }
+  } else if (alg_k & SSL_kSM2) {
+    X509 *x = NULL;
+    x = hs->new_session->x509_peer;
+
+    // search for encrypt certificate.
+    size_t cert_num = sk_CRYPTO_BUFFER_num(hs->new_session->certs.get());
+    printf("cert_num: %lu\n", cert_num);
+    if (cert_num >= 2) {
+      for (size_t i = 0; i < cert_num; i++) {
+        x = sk_X509_value(hs->new_session->x509_chain, i);
+        int32_t usage=X509_get_key_usage(x);
+        if(usage & KU_KEY_ENCIPHERMENT) {
+          printf("found encrypt cert\n");
+          break;
+        }
+      }
+    }
+
+    uint32_t nlen = i2d_X509(x, NULL);
+    cert_buf.resize(nlen + 3);
+
+    cert_buf[0] = (uint8_t)(nlen >> 16) & 0xff;
+    cert_buf[1] = (uint8_t)(nlen >> 8) & 0xff;
+    cert_buf[2] = (uint8_t)(nlen) & 0xff;
+    unsigned char* p_out = cert_buf.data() + 3;
+    uint32_t written = i2d_X509(x, &p_out);
+    assert(written == nlen);
+    if (written != nlen) {
+      OPENSSL_PUT_ERROR(SSL, SSL_R_UNEXPECTED_MESSAGE);
+      ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_UNEXPECTED_MESSAGE);
+      return ssl_hs_error;
+    }
   } else if (!(alg_k & SSL_kPSK) && !(alg_k & SSL_kSM2)) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_UNEXPECTED_MESSAGE);
     ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_UNEXPECTED_MESSAGE);
@@ -1229,8 +1260,12 @@ static enum ssl_hs_wait_t do_read_server_key_exchange(SSL_HANDSHAKE *hs) {
   // |msg.body| contains the entire message. From that, derive a CBS containing
   // just the parameter.
   CBS parameter;
-  CBS_init(&parameter, CBS_data(&msg.body),
-           CBS_len(&msg.body) - CBS_len(&server_key_exchange));
+  if (alg_k & SSL_kSM2) {
+    CBS_init(&parameter, cert_buf.data(), cert_buf.size());
+  } else {
+    CBS_init(&parameter, CBS_data(&msg.body),
+             CBS_len(&msg.body) - CBS_len(&server_key_exchange));
+  }
 
   // ServerKeyExchange should be signed by the server's public key.
   if (ssl_cipher_uses_certificate_auth(hs->new_cipher)) {
@@ -1652,6 +1687,51 @@ static enum ssl_hs_wait_t do_send_client_key_exchange(SSL_HANDSHAKE *hs) {
       return ssl_hs_error;
     }
     OPENSSL_memset(pms.data(), 0, pms.size());
+  } else if (alg_k & SSL_kSM2) {
+    /*
+     * for client side, hs->new_session->peer == hs->new_session->x509_chain[0] is
+     * the server signing certificate.
+     *
+     * hs->new_session->x509_chain[1] is the server encryption certificate
+     */
+    X509* x509 = NULL;
+    if (hs->new_session->x509_chain == NULL
+        || (x509 = sk_X509_value(hs->new_session->x509_chain, 1)) == NULL) {
+      OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
+      return ssl_hs_error;
+    }
+
+    EVP_PKEY *pkey = X509_get0_pubkey(x509);
+    EC_KEY *ec_key = EVP_PKEY_get0_EC_KEY(pkey);
+    if (pkey == NULL ||
+        (pkey->type != EVP_PKEY_SM2 && pkey->type != EVP_PKEY_EC) || !ec_key) {
+      OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
+      EVP_PKEY_free(pkey);
+      return ssl_hs_error;
+    }
+
+    size_t pms_len = SSL_MAX_MASTER_KEY_LENGTH;
+    if (!pms.Init(pms_len)) {
+      OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
+      return ssl_hs_error;
+    }
+
+    pms[0] = hs->client_version >> 8;
+    pms[1] = hs->client_version & 0xff;
+    if (!RAND_bytes(&pms[2], SSL_MAX_MASTER_KEY_LENGTH - 2)) {
+      return ssl_hs_error;
+    }
+
+    CBB enc_pms;
+    uint8_t *ptr;
+    size_t enc_pms_len;
+    if (!CBB_add_u16_length_prefixed(&body, &enc_pms) ||
+        !CBB_reserve(&enc_pms, &ptr, 512) ||
+        !ossl_sm2_encrypt(ec_key, EVP_sm3(), pms.data(), pms.size(), ptr, &enc_pms_len) ||
+        !CBB_did_write(&enc_pms, enc_pms_len) ||
+        !CBB_flush(&body)) {
+      return ssl_hs_error;
+    }
   } else {
     ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_HANDSHAKE_FAILURE);
     OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);

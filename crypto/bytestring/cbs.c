@@ -238,6 +238,16 @@ int CBS_get_u64_decimal(CBS *cbs, uint64_t *out) {
   return seen_digit;
 }
 
+void CBS_log_as_hex(const CBS *cbs) {
+  const uint8_t *data = CBS_data(cbs);
+  size_t len = CBS_len(cbs);
+
+  for (size_t i = 0; i < len; i++)
+    fprintf(stderr, "%02x", data[i]);
+
+  fprintf(stderr, "\n");
+}
+
 // parse_base128_integer reads a big-endian base-128 integer from |cbs| and sets
 // |*out| to the result. This is the encoding used in DER for both high tag
 // number form and OID components.

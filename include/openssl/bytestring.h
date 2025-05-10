@@ -170,6 +170,7 @@ OPENSSL_EXPORT int CBS_get_until_first(CBS *cbs, CBS *out, uint8_t c);
 // zeros, or negative values.
 OPENSSL_EXPORT int CBS_get_u64_decimal(CBS *cbs, uint64_t *out);
 
+OPENSSL_EXPORT void CBS_log_as_hex(const CBS *cbs);
 
 // Parsing ASN.1
 //

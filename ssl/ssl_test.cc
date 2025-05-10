@@ -1172,6 +1172,15 @@ TEST(SSLTest, CipherProperties) {
           NID_auth_sm2,
           NID_sm3,
       },
+      {
+          NTLS_CK_ECC_SM2_SM4_CBC_SM3,
+          "ECC_SM4_CBC_SM3",
+          NID_sm4_cbc,
+          NID_sm3,
+          NID_kx_sm2,
+          NID_auth_sm2,
+          NID_sm3,
+      },
   };
 
   for (const auto &t : kTests) {
