@@ -349,7 +349,8 @@ static int aead_tls_open(const EVP_AEAD_CTX *ctx, uint8_t *out, size_t *out_len,
   } else {
     // We should support the constant-time path for all CBC-mode ciphers
     // implemented.
-    assert(EVP_CIPHER_CTX_mode(&tls_ctx->cipher_ctx) != EVP_CIPH_CBC_MODE);
+    // TODO(alex): for NTLS
+    // assert(EVP_CIPHER_CTX_mode(&tls_ctx->cipher_ctx) != EVP_CIPH_CBC_MODE);
 
     unsigned mac_len_u;
     if (!HMAC_Init_ex(&tls_ctx->hmac_ctx, NULL, 0, NULL, NULL) ||

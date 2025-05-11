@@ -1724,7 +1724,7 @@ static enum ssl_hs_wait_t do_send_client_key_exchange(SSL_HANDSHAKE *hs) {
 
     CBB enc_pms;
     uint8_t *ptr;
-    size_t enc_pms_len;
+    size_t enc_pms_len = 512;
     if (!CBB_add_u16_length_prefixed(&body, &enc_pms) ||
         !CBB_reserve(&enc_pms, &ptr, 512) ||
         !ossl_sm2_encrypt(ec_key, EVP_sm3(), pms.data(), pms.size(), ptr, &enc_pms_len) ||
