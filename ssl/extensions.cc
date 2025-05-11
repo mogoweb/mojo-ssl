@@ -3484,10 +3484,6 @@ bool ssl_add_clienthello_tlsext(SSL_HANDSHAKE *hs, CBB *out, CBB *out_encoded,
     return false;
   }
 
-  if (ssl->version == NTLS_VERSION) {
-    return CBB_flush(out);
-  }
-
   // Note we may send multiple ClientHellos for DTLS HelloVerifyRequest and TLS
   // 1.3 HelloRetryRequest. For the latter, the extensions may change, so it is
   // important to reset this value.
