@@ -168,11 +168,11 @@ const struct {
   uint16_t version;
   uint32_t flag;
 } kProtocolVersions[] = {
+    {NTLS_VERSION, SSL_OP_NO_NTLS},
     {TLS1_VERSION, SSL_OP_NO_TLSv1},
     {TLS1_1_VERSION, SSL_OP_NO_TLSv1_1},
     {TLS1_2_VERSION, SSL_OP_NO_TLSv1_2},
     {TLS1_3_VERSION, SSL_OP_NO_TLSv1_3},
-    {NTLS_VERSION, SSL_OP_NO_NTLS},
 };
 
 bool ssl_get_version_range(const SSL_HANDSHAKE *hs, uint16_t *out_min_version,

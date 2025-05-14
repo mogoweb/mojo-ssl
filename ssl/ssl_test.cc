@@ -1033,7 +1033,6 @@ TEST(SSLTest, DefaultVersion) {
   ExpectDefaultVersion(DTLS1_VERSION, DTLS1_2_VERSION, &DTLS_method);
   ExpectDefaultVersion(DTLS1_VERSION, DTLS1_VERSION, &DTLSv1_method);
   ExpectDefaultVersion(DTLS1_2_VERSION, DTLS1_2_VERSION, &DTLSv1_2_method);
-  ExpectDefaultVersion(NTLS_VERSION, NTLS_VERSION, &NTLS_method);
 }
 
 TEST(SSLTest, CipherProperties) {
@@ -3410,9 +3409,6 @@ TEST(SSLTest, ClientHello) {
     SCOPED_TRACE(t.max_version);
 
     bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
-    if (t.max_version == NTLS_VERSION) {
-      ctx.reset(SSL_CTX_new(NTLS_method()));
-    }
     
     ASSERT_TRUE(ctx);
     // Our default cipher list varies by CPU capabilities, so manually place the

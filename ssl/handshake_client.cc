@@ -486,11 +486,12 @@ static enum ssl_hs_wait_t do_start_connect(SSL_HANDSHAKE *hs) {
   if (SSL_is_dtls(hs->ssl)) {
     hs->client_version =
         hs->max_version >= TLS1_2_VERSION ? DTLS1_2_VERSION : DTLS1_VERSION;
-  } else if (hs->client_version == NTLS_VERSION) {
-    ssl->version = NTLS_VERSION;
   } else {
     hs->client_version =
         hs->max_version >= TLS1_2_VERSION ? TLS1_2_VERSION : hs->max_version;
+  }
+  if (hs->client_version == NTLS_VERSION) {
+    ssl->version = NTLS_VERSION;
   }
 
   // If the configured session has expired or is not usable, drop it. We also do

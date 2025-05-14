@@ -405,10 +405,10 @@ bool Client(const std::vector<std::string> &args) {
   }
 
   bssl::UniquePtr<SSL_CTX> ctx;
+  ctx.reset(SSL_CTX_new(TLS_method()));
   if (args_map.count("-ntls") != 0) {
-    ctx.reset(SSL_CTX_new(NTLS_method()));
-  } else {
-    ctx.reset(SSL_CTX_new(TLS_method()));
+    SSL_CTX_set_min_proto_version(ctx.get(), NTLS_VERSION);
+    SSL_CTX_set_min_proto_version(ctx.get(), NTLS_VERSION);
   }
 
   const char *keylog_file = getenv("SSLKEYLOGFILE");

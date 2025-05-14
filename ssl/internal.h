@@ -3364,8 +3364,6 @@ bool tls_add_message(SSL *ssl, Array<uint8_t> msg);
 bool tls_add_change_cipher_spec(SSL *ssl);
 int tls_flush_flight(SSL *ssl);
 
-bool ntls_new(SSL *ssl);
-
 bool dtls1_init_message(const SSL *ssl, CBB *cbb, CBB *body, uint8_t type);
 bool dtls1_finish_message(const SSL *ssl, CBB *cbb, Array<uint8_t> *out_msg);
 bool dtls1_add_message(SSL *ssl, Array<uint8_t> msg);

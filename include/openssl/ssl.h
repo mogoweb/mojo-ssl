@@ -4875,7 +4875,6 @@ OPENSSL_EXPORT const SSL_METHOD *TLSv1_1_method(void);
 OPENSSL_EXPORT const SSL_METHOD *TLSv1_2_method(void);
 OPENSSL_EXPORT const SSL_METHOD *DTLSv1_method(void);
 OPENSSL_EXPORT const SSL_METHOD *DTLSv1_2_method(void);
-OPENSSL_EXPORT const SSL_METHOD *NTLS_method(void);
 
 // These client- and server-specific methods call their corresponding generic
 // methods.
