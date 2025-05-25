@@ -90,6 +90,7 @@ static const nid_triple kTriples[] = {
     // digest "undef" indicates the caller should handle this explicitly.
     {NID_rsassaPss, NID_undef, NID_rsaEncryption},
     {NID_ED25519, NID_undef, NID_ED25519},
+    {NID_SM2_with_SM3, NID_sm3, NID_sm2},
 };
 
 int OBJ_find_sigid_algs(int sign_nid, int *out_digest_nid, int *out_pkey_nid) {
