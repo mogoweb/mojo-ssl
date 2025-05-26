@@ -80,6 +80,7 @@ bool SimplePathBuilderDelegate::IsSignatureAlgorithmAcceptable(
     case SignatureAlgorithm::kRsaPssSha256:
     case SignatureAlgorithm::kRsaPssSha384:
     case SignatureAlgorithm::kRsaPssSha512:
+    case SignatureAlgorithm::kSm2WithSm3:
       return true;
   }
   return false;
@@ -120,6 +121,11 @@ bool SimplePathBuilderDelegate::IsPublicKeyAcceptable(EVP_PKEY *public_key,
       return false;
     }
 
+    return true;
+  }
+
+  if (pkey_id == EVP_PKEY_SM2) {
+    // SM2 keys are always acceptable as they use a fixed curve
     return true;
   }
 

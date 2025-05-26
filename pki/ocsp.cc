@@ -567,6 +567,9 @@ bool CheckCertIDMatchesCertificate(
     case DigestAlgorithm::Sha512:
       type = EVP_sha512();
       break;
+    case DigestAlgorithm::Sm3:
+      type = EVP_sm3();
+      break;
   }
 
   if (!VerifyHash(type, id.issuer_name_hash, certificate->tbs().issuer_tlv)) {

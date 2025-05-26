@@ -27,6 +27,7 @@ enum class DigestAlgorithm {
   Sha256,
   Sha384,
   Sha512,
+  Sm3,
 };
 
 // The signature algorithm used within a certificate.
@@ -45,7 +46,8 @@ enum class SignatureAlgorithm {
   kRsaPssSha256,
   kRsaPssSha384,
   kRsaPssSha512,
-  kMaxValue = kRsaPssSha512,
+  kSm2WithSm3,
+  kMaxValue = kSm2WithSm3,
 };
 
 // Parses AlgorithmIdentifier as defined by RFC 5280 section 4.1.1.2:

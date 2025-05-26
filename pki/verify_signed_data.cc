@@ -220,6 +220,11 @@ bool VerifySignedData(SignatureAlgorithm algorithm, der::Input signed_data,
       cache_algorithm_name = "RsaPssSha512";
       is_rsa_pss = true;
       break;
+    case SignatureAlgorithm::kSm2WithSm3:
+      expected_pkey_id = EVP_PKEY_SM2;
+      digest = EVP_sm3();
+      cache_algorithm_name = "Sm2WithSm3";
+      break;
   }
 
   if (expected_pkey_id != EVP_PKEY_id(public_key)) {

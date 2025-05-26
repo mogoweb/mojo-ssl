@@ -123,6 +123,10 @@ const uint8_t kOidRsaSsaPss[] = {0x2a, 0x86, 0x48, 0x86, 0xf7,
 const uint8_t kOidMgf1[] = {0x2a, 0x86, 0x48, 0x86, 0xf7,
                             0x0d, 0x01, 0x01, 0x08};
 
+// In dotted notation: 1.2.156.10197.1.501
+const uint8_t kOidSm2WithSm3[] = {0x2a, 0x81, 0x1c, 0xcf, 0x55,
+                                  0x01, 0x87, 0x75};
+
 // Returns true if the entirety of the input is a NULL value.
 [[nodiscard]] bool IsNull(der::Input input) {
   der::Parser parser(input);
@@ -266,6 +270,9 @@ std::optional<SignatureAlgorithm> ParseRsaPss(der::Input params) {
   if (hash == DigestAlgorithm::Sha512 && salt_length == 64) {
     return SignatureAlgorithm::kRsaPssSha512;
   }
+  if (hash == DigestAlgorithm::Sm3 && salt_length == 32) {
+    return SignatureAlgorithm::kSm2WithSm3;
+  }
 
   return std::nullopt;
 }
@@ -320,6 +327,8 @@ std::optional<SignatureAlgorithm> ParseRsaPss(der::Input params) {
     *out = DigestAlgorithm::Sha384;
   } else if (md == EVP_sha512()) {
     *out = DigestAlgorithm::Sha512;
+  } else if (md == EVP_sm3()) {
+    *out = DigestAlgorithm::Sm3;
   } else {
     // TODO(eroman): Support MD2, MD4, MD5 for completeness?
     // Unsupported digest algorithm.
@@ -375,6 +384,9 @@ std::optional<SignatureAlgorithm> ParseSignatureAlgorithm(
   if (oid == der::Input(kOidEcdsaWithSha512) && params.empty()) {
     return SignatureAlgorithm::kEcdsaSha512;
   }
+  if (oid == der::Input(kOidSm2WithSm3) && IsNullOrEmpty(params)) {
+    return SignatureAlgorithm::kSm2WithSm3;
+  }
 
   if (oid == der::Input(kOidRsaSsaPss)) {
     return ParseRsaPss(params);
@@ -418,6 +430,8 @@ std::optional<DigestAlgorithm> GetTlsServerEndpointDigestAlgorithm(
       return DigestAlgorithm::Sha384;
     case SignatureAlgorithm::kRsaPssSha512:
       return DigestAlgorithm::Sha512;
+    case SignatureAlgorithm::kSm2WithSm3:
+      return DigestAlgorithm::Sm3;
   }
   return std::nullopt;
 }
