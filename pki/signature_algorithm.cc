@@ -125,7 +125,7 @@ const uint8_t kOidMgf1[] = {0x2a, 0x86, 0x48, 0x86, 0xf7,
 
 // In dotted notation: 1.2.156.10197.1.501
 const uint8_t kOidSm2WithSm3[] = {0x2a, 0x81, 0x1c, 0xcf, 0x55,
-                                  0x01, 0x87, 0x75};
+                                  0x01, 0x83, 0x75};
 
 // Returns true if the entirety of the input is a NULL value.
 [[nodiscard]] bool IsNull(der::Input input) {

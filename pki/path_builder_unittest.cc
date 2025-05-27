@@ -2921,4 +2921,42 @@ TEST(PathBuilderPrioritizationTest, SelfIssuedPrioritization) {
 
 }  // namespace
 
+TEST(PathBuilderTest, SM2SelfSignedRoot) {
+  std::shared_ptr<const ParsedCertificate> sm2_root_cert =
+      ReadCertFromFile("test/certs/sm2/chain-ca.crt");
+  ASSERT_TRUE(sm2_root_cert);
+
+  TrustStoreInMemory trust_store;
+  trust_store.AddTrustAnchor(sm2_root_cert);
+
+  TestPathBuilderDelegate delegate(
+      1024, TestPathBuilderDelegate::DigestPolicy::kWeakAllowSha1);
+  der::GeneralizedTime time = {2019, 1, 1, 0, 0, 0};
+
+  const InitialExplicitPolicy initial_explicit_policy =
+      InitialExplicitPolicy::kFalse;
+  const std::set<der::Input> user_initial_policy_set = {
+      der::Input(kAnyPolicyOid)};
+  const InitialPolicyMappingInhibit initial_policy_mapping_inhibit =
+      InitialPolicyMappingInhibit::kFalse;
+  const InitialAnyPolicyInhibit initial_any_policy_inhibit =
+      InitialAnyPolicyInhibit::kFalse;
+
+  CertPathBuilder path_builder(
+      sm2_root_cert, &trust_store, &delegate, time, KeyPurpose::ANY_EKU,
+      initial_explicit_policy, user_initial_policy_set,
+      initial_policy_mapping_inhibit, initial_any_policy_inhibit);
+
+  auto result = path_builder.Run();
+
+  ASSERT_TRUE(result.HasValidPath());
+  VerifyError error = result.GetBestPathVerifyError();
+  ASSERT_EQ(error.Code(), VerifyError::StatusCode::PATH_VERIFIED)
+      << error.DiagnosticString();
+  const auto &path = *result.GetBestValidPath();
+  ASSERT_EQ(2U, path.certs.size());
+  EXPECT_EQ(sm2_root_cert, path.certs[0]);
+  EXPECT_EQ(sm2_root_cert, path.certs[1]);
+}
+
 }  // namespace bssl
