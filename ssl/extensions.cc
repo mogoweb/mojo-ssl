@@ -317,14 +317,19 @@ static const uint16_t kDefaultNTLSGroups[] = {
 };
 
 Span<const uint16_t> tls1_get_grouplist(const SSL_HANDSHAKE *hs) {
+  SSL *const ssl = hs->ssl;
+
+  // 使用国密时，返回国密默认组
+  if (ssl->version == NTLS_VERSION) {
+    return Span<const uint16_t>(kDefaultNTLSGroups);
+  }
+
+  // 如果配置了自定义的 supported_group_list，使用自定义配置
   if (!hs->config->supported_group_list.empty()) {
     return hs->config->supported_group_list;
   }
 
-  SSL *const ssl = hs->ssl;
-  if (ssl->version == NTLS_VERSION) {
-    return Span<const uint16_t>(kDefaultNTLSGroups);
-  }
+  // 否则使用默认组
   return Span<const uint16_t>(kDefaultGroups);
 }
 
