@@ -348,7 +348,6 @@ set(
   crypto/bio/socket.cc
   crypto/bio/socket_helper.cc
   crypto/blake2/blake2.cc
-  crypto/sm3/sm3.cc
   crypto/bn/bn_asn1.cc
   crypto/bn/convert.cc
   crypto/bn/div.cc
@@ -469,6 +468,7 @@ set(
   crypto/sha/sha512.cc
   crypto/siphash/siphash.cc
   crypto/slhdsa/slhdsa.cc
+  crypto/sm3/sm3.cc
   crypto/spake2plus/spake2plus.cc
   crypto/stack/stack.cc
   crypto/thread.cc
@@ -565,7 +565,6 @@ set(
   include/openssl/base64.h
   include/openssl/bio.h
   include/openssl/blake2.h
-  include/openssl/sm3.h
   include/openssl/blowfish.h
   include/openssl/bn.h
   include/openssl/buf.h
@@ -631,6 +630,7 @@ set(
   include/openssl/sha2.h
   include/openssl/siphash.h
   include/openssl/slhdsa.h
+  include/openssl/sm3.h
   include/openssl/span.h
   include/openssl/stack.h
   include/openssl/target.h
@@ -779,7 +779,6 @@ set(
   crypto/base64/base64_test.cc
   crypto/bio/bio_test.cc
   crypto/blake2/blake2_test.cc
-  crypto/sm3/sm3_test.cc
   crypto/buf/buf_test.cc
   crypto/bytestring/bytestring_test.cc
   crypto/chacha/chacha_test.cc
@@ -843,6 +842,7 @@ set(
   crypto/self_test.cc
   crypto/siphash/siphash_test.cc
   crypto/slhdsa/slhdsa_test.cc
+  crypto/sm3/sm3_test.cc
   crypto/spake2plus/spake2plus_test.cc
   crypto/stack/stack_test.cc
   crypto/test/gtest_main.cc
@@ -859,7 +859,6 @@ set(
   CRYPTO_TEST_DATA
 
   crypto/blake2/blake2b256_tests.txt
-  crypto/sm3/sm3_tests.txt
   crypto/cipher/test/aes_128_cbc_sha1_tls_implicit_iv_tests.txt
   crypto/cipher/test/aes_128_cbc_sha1_tls_tests.txt
   crypto/cipher/test/aes_128_ccm_bluetooth_8_tests.txt
@@ -989,6 +988,7 @@ set(
   crypto/slhdsa/slhdsa_shake_256f_keygen.txt
   crypto/slhdsa/slhdsa_shake_256f_siggen.txt
   crypto/slhdsa/slhdsa_shake_256f_sigver.txt
+  crypto/sm3/sm3_tests.txt
   crypto/x509/test/basic_constraints_ca.pem
   crypto/x509/test/basic_constraints_ca_pathlen_0.pem
   crypto/x509/test/basic_constraints_ca_pathlen_1.pem
