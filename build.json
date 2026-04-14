@@ -823,7 +823,6 @@
             "crypto/bio/bio_test.cc",
             "crypto/blake2/blake2_test.cc",
             "crypto/sm3/sm3_test.cc",
-            "crypto/sm3/sm3_test.cc",
             "crypto/buf/buf_test.cc",
             "crypto/bytestring/bytestring_test.cc",
             "crypto/chacha/chacha_test.cc",

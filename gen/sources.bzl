@@ -545,6 +545,7 @@ crypto_headers = [
     "include/openssl/base64.h",
     "include/openssl/bio.h",
     "include/openssl/blake2.h",
+    "include/openssl/sm3.h",
     "include/openssl/blowfish.h",
     "include/openssl/bn.h",
     "include/openssl/buf.h",
