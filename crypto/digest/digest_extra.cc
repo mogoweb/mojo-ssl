@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include <openssl/blake2.h>
+#include <openssl/sm3.h>
 #include <openssl/bytestring.h>
 #include <openssl/md4.h>
 #include <openssl/md5.h>
@@ -331,3 +332,31 @@ const EVP_MD evp_md_md5_sha1 = {
 const EVP_MD *EVP_md5_sha1() { return &evp_md_md5_sha1; }
 
 static_assert(sizeof(MD5_SHA1_CTX) <= EVP_MAX_MD_DATA_SIZE);
+
+
+static void sm3_init(EVP_MD_CTX *ctx) {
+  SM3_Init(reinterpret_cast<SM3_CTX *>(ctx->md_data));
+}
+
+static void sm3_update(EVP_MD_CTX *ctx, const void *data, size_t len) {
+  SM3_Update(reinterpret_cast<SM3_CTX *>(ctx->md_data), data, len);
+}
+
+static void sm3_final(EVP_MD_CTX *ctx, uint8_t *md) {
+  SM3_Final(md, reinterpret_cast<SM3_CTX *>(ctx->md_data));
+}
+
+static const EVP_MD evp_md_sm3 = {
+    NID_undef,       // SM3 has no official NID in BoringSSL
+    SM3_DIGEST_LENGTH,
+    0,
+    sm3_init,
+    sm3_update,
+    sm3_final,
+    SM3_CBLOCK,
+    sizeof(SM3_CTX),
+};
+
+const EVP_MD *EVP_sm3() { return &evp_md_sm3; }
+
+static_assert(sizeof(SM3_CTX) <= EVP_MAX_MD_DATA_SIZE);
