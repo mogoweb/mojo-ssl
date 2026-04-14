@@ -322,6 +322,7 @@ boringssl_crypto_sources := \
   crypto/bio/socket.cc \
   crypto/bio/socket_helper.cc \
   crypto/blake2/blake2.cc \
+  crypto/sm3/sm3.cc \
   crypto/bn/bn_asn1.cc \
   crypto/bn/convert.cc \
   crypto/bn/div.cc \
@@ -736,6 +737,7 @@ boringssl_crypto_test_sources := \
   crypto/base64/base64_test.cc \
   crypto/bio/bio_test.cc \
   crypto/blake2/blake2_test.cc \
+  crypto/sm3/sm3_test.cc \
   crypto/buf/buf_test.cc \
   crypto/bytestring/bytestring_test.cc \
   crypto/chacha/chacha_test.cc \
@@ -812,6 +814,7 @@ boringssl_crypto_test_sources := \
 
 boringssl_crypto_test_data := \
   crypto/blake2/blake2b256_tests.txt \
+  crypto/sm3/sm3_tests.txt \
   crypto/cipher/test/aes_128_cbc_sha1_tls_implicit_iv_tests.txt \
   crypto/cipher/test/aes_128_cbc_sha1_tls_tests.txt \
   crypto/cipher/test/aes_128_ccm_bluetooth_8_tests.txt \

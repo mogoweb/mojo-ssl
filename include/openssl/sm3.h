@@ -33,13 +33,14 @@ extern "C" {
 #define SM3_CBLOCK 64
 
 
-// SM3_CTX is the state for an SM3 digest operation.
 struct sm3_state_st {
   uint32_t h[8];              // 8 state words (A-H)
   uint32_t Nl, Nh;            // message bit count
   uint8_t data[SM3_CBLOCK];   // data buffer
   unsigned num;               // bytes in buffer
-} /* SM3_CTX */;
+};
+
+typedef struct sm3_state_st SM3_CTX;
 
 
 // SM3_Init initialises |ctx| for a fresh SM3 hash. It returns one.

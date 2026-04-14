@@ -1,0 +1,96 @@
+// Copyright 2024 The BoringSSL Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include <openssl/sm3.h>
+
+#include <gtest/gtest.h>
+
+#include "../test/file_test.h"
+#include "../test/test_util.h"
+
+
+BSSL_NAMESPACE_BEGIN
+namespace {
+
+// Test vector from GM/T 0004-2012 Example 1 (A.1)
+TEST(SM3Test, ABC) {
+  const uint8_t kInput[] = {0x61, 0x62, 0x63};  // "abc"
+  const uint8_t kExpected[SM3_DIGEST_LENGTH] = {
+      0x66, 0xc7, 0xf0, 0xf4, 0x62, 0xee, 0xed, 0xd9,
+      0xd1, 0xf2, 0xd4, 0x6b, 0xdc, 0x10, 0xe4, 0xe2,
+      0x41, 0x67, 0xc4, 0x87, 0x5c, 0xf2, 0xf7, 0xa2,
+      0x29, 0x7d, 0xa0, 0x2b, 0x8f, 0x4b, 0xa8, 0xe0
+  };
+
+  uint8_t digest[SM3_DIGEST_LENGTH];
+  SM3(kInput, sizeof(kInput), digest);
+  EXPECT_EQ(Bytes(kExpected), Bytes(digest));
+}
+
+// Test vector from GM/T 0004-2012 Example 2 (A.2)
+TEST(SM3Test, ABCD16) {
+  const uint8_t kInput[] = {
+      0x61, 0x62, 0x63, 0x64, 0x61, 0x62, 0x63, 0x64,
+      0x61, 0x62, 0x63, 0x64, 0x61, 0x62, 0x63, 0x64,
+      0x61, 0x62, 0x63, 0x64, 0x61, 0x62, 0x63, 0x64,
+      0x61, 0x62, 0x63, 0x64, 0x61, 0x62, 0x63, 0x64,
+      0x61, 0x62, 0x63, 0x64, 0x61, 0x62, 0x63, 0x64,
+      0x61, 0x62, 0x63, 0x64, 0x61, 0x62, 0x63, 0x64,
+      0x61, 0x62, 0x63, 0x64, 0x61, 0x62, 0x63, 0x64,
+      0x61, 0x62, 0x63, 0x64, 0x61, 0x62, 0x63, 0x64
+  };
+  const uint8_t kExpected[SM3_DIGEST_LENGTH] = {
+      0xde, 0xbe, 0x9f, 0xf9, 0x22, 0x75, 0xb8, 0xa1,
+      0x38, 0x60, 0x48, 0x89, 0xc1, 0x8e, 0x5a, 0x4d,
+      0x6f, 0xdb, 0x70, 0xe5, 0x38, 0x7e, 0x57, 0x65,
+      0x29, 0x3d, 0xcb, 0xa3, 0x9c, 0x0c, 0x57, 0x32
+  };
+
+  uint8_t digest[SM3_DIGEST_LENGTH];
+  SM3(kInput, sizeof(kInput), digest);
+  EXPECT_EQ(Bytes(kExpected), Bytes(digest));
+}
+
+TEST(SM3Test, Streaming) {
+  const uint8_t kInput[] = {0x61, 0x62, 0x63};
+  const uint8_t kExpected[SM3_DIGEST_LENGTH] = {
+      0x66, 0xc7, 0xf0, 0xf4, 0x62, 0xee, 0xed, 0xd9,
+      0xd1, 0xf2, 0xd4, 0x6b, 0xdc, 0x10, 0xe4, 0xe2,
+      0x41, 0x67, 0xc4, 0x87, 0x5c, 0xf2, 0xf7, 0xa2,
+      0x29, 0x7d, 0xa0, 0x2b, 0x8f, 0x4b, 0xa8, 0xe0
+  };
+
+  SM3_CTX ctx;
+  uint8_t digest[SM3_DIGEST_LENGTH];
+
+  ASSERT_TRUE(SM3_Init(&ctx));
+  ASSERT_TRUE(SM3_Update(&ctx, kInput, sizeof(kInput)));
+  ASSERT_TRUE(SM3_Final(digest, &ctx));
+  EXPECT_EQ(Bytes(kExpected), Bytes(digest));
+}
+
+TEST(SM3Test, TestVectors) {
+  FileTestGTest("crypto/sm3/sm3_tests.txt", [](FileTest *t) {
+    std::vector<uint8_t> msg, expected;
+    ASSERT_TRUE(t->GetBytes(&msg, "IN"));
+    ASSERT_TRUE(t->GetBytes(&expected, "HASH"));
+
+    uint8_t digest[SM3_DIGEST_LENGTH];
+    SM3(msg.data(), msg.size(), digest);
+    EXPECT_EQ(Bytes(digest), Bytes(expected)) << "Input length: " << msg.size();
+  });
+}
+
+}  // namespace
+BSSL_NAMESPACE_END
