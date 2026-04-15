@@ -470,6 +470,9 @@ set(
   crypto/sha/sha512.cc
   crypto/siphash/siphash.cc
   crypto/slhdsa/slhdsa.cc
+  crypto/sm2/sm2.cc
+  crypto/sm2/sm2_kdf.cc
+  crypto/sm2/sm2_key.cc
   crypto/sm3/sm3.cc
   crypto/sm4/sm4.cc
   crypto/spake2plus/spake2plus.cc
@@ -633,6 +636,7 @@ set(
   include/openssl/sha2.h
   include/openssl/siphash.h
   include/openssl/slhdsa.h
+  include/openssl/sm2.h
   include/openssl/sm3.h
   include/openssl/sm4.h
   include/openssl/span.h
