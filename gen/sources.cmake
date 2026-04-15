@@ -367,9 +367,9 @@ set(
   crypto/cipher/e_chacha20poly1305.cc
   crypto/cipher/e_des.cc
   crypto/cipher/e_null.cc
-  crypto/cipher/e_sm4.cc
   crypto/cipher/e_rc2.cc
   crypto/cipher/e_rc4.cc
+  crypto/cipher/e_sm4.cc
   crypto/cipher/e_tls.cc
   crypto/cipher/get_cipher.cc
   crypto/cipher/tls_cbc.cc
