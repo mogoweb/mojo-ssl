@@ -469,6 +469,7 @@ set(
   crypto/siphash/siphash.cc
   crypto/slhdsa/slhdsa.cc
   crypto/sm3/sm3.cc
+  crypto/sm4/sm4.cc
   crypto/spake2plus/spake2plus.cc
   crypto/stack/stack.cc
   crypto/thread.cc
@@ -631,6 +632,7 @@ set(
   include/openssl/siphash.h
   include/openssl/slhdsa.h
   include/openssl/sm3.h
+  include/openssl/sm4.h
   include/openssl/span.h
   include/openssl/stack.h
   include/openssl/target.h
@@ -843,6 +845,7 @@ set(
   crypto/siphash/siphash_test.cc
   crypto/slhdsa/slhdsa_test.cc
   crypto/sm3/sm3_test.cc
+  crypto/sm4/sm4_test.cc
   crypto/spake2plus/spake2plus_test.cc
   crypto/stack/stack_test.cc
   crypto/test/gtest_main.cc
@@ -989,6 +992,7 @@ set(
   crypto/slhdsa/slhdsa_shake_256f_siggen.txt
   crypto/slhdsa/slhdsa_shake_256f_sigver.txt
   crypto/sm3/sm3_tests.txt
+  crypto/sm4/sm4_tests.txt
   crypto/x509/test/basic_constraints_ca.pem
   crypto/x509/test/basic_constraints_ca_pathlen_0.pem
   crypto/x509/test/basic_constraints_ca_pathlen_1.pem
