@@ -54,8 +54,9 @@ static_assert(ERR_LIB_CIPHER == 30, "library value changed");
 static_assert(ERR_LIB_HKDF == 31, "library value changed");
 static_assert(ERR_LIB_TRUST_TOKEN == 32, "library value changed");
 static_assert(ERR_LIB_CMS == 33, "library value changed");
-static_assert(ERR_LIB_USER == 34, "library value changed");
-static_assert(ERR_NUM_LIBS == 35, "number of libraries changed");
+static_assert(ERR_LIB_SM2 == 34, "library value changed");
+static_assert(ERR_LIB_USER == 35, "library value changed");
+static_assert(ERR_NUM_LIBS == 36, "number of libraries changed");
 
 extern const uint32_t kOpenSSLReasonValues[];
 const uint32_t kOpenSSLReasonValues[] = {

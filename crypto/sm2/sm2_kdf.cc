@@ -22,16 +22,14 @@
 #include "../internal.h"
 
 
-BSSL_NAMESPACE_BEGIN
-
 // X9.63 KDF (equivalent to SM2 KDF)
 // K = KDF(Z, klen)
 // For i = 1 to ceil(klen / hashlen):
 //   K_i = Hash(Z || i)
 // K = K_1 || K_2 || ... || K_n (truncated to klen)
-int sm2_kdf(uint8_t *out, size_t out_len,
-            const uint8_t *z, size_t z_len,
-            const EVP_MD *md) {
+extern "C" int sm2_kdf(uint8_t *out, size_t out_len,
+                       const uint8_t *z, size_t z_len,
+                       const EVP_MD *md) {
   if (out == NULL || out_len == 0) {
     return 0;
   }
@@ -73,7 +71,7 @@ int sm2_kdf(uint8_t *out, size_t out_len,
     }
 
     size_t copy_len = remaining < md_size ? remaining : md_size;
-    OPENSSL_memcpy(out_ptr, digest, copy_len);
+    memcpy(out_ptr, digest, copy_len);
     out_ptr += copy_len;
     remaining -= copy_len;
   }
@@ -85,5 +83,3 @@ err:
   OPENSSL_cleanse(digest, sizeof(digest));
   return ret;
 }
-
-BSSL_NAMESPACE_END

@@ -62,6 +62,7 @@ var libraryNames = []string{
 	"HKDF",
 	"TRUST_TOKEN",
 	"CMS",
+	"SM2",
 	"USER",
 }
 

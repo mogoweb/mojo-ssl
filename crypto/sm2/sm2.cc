@@ -134,6 +134,7 @@ int SM2_encrypt(const EC_KEY *key,
   uint8_t C3[32];  // SM3 digest size is 32 bytes
   size_t field_size = 0;
   size_t z_len = 0;
+  const BIGNUM *order = NULL;
 
   bn_ctx = BN_CTX_new();
   k = BN_new();
@@ -150,7 +151,7 @@ int SM2_encrypt(const EC_KEY *key,
   }
 
   // Step 1: Generate random k in [1, n-1)
-  const BIGNUM *order = EC_GROUP_get0_order(group);
+  order = EC_GROUP_get0_order(group);
 
   // SM2 requires k in [1, n-1)
   // BN_rand_range gives [0, n-1], so we use BN_rand_range_ex with min=1
