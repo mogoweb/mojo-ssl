@@ -850,6 +850,7 @@ set(
   crypto/self_test.cc
   crypto/siphash/siphash_test.cc
   crypto/slhdsa/slhdsa_test.cc
+  crypto/sm2/sm2_test.cc
   crypto/sm3/sm3_test.cc
   crypto/sm4/sm4_test.cc
   crypto/spake2plus/spake2plus_test.cc
