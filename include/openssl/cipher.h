@@ -50,6 +50,13 @@ OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_256_ctr(void);
 OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_256_ofb(void);
 OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_256_xts(void);
 
+// SM4
+OPENSSL_EXPORT const EVP_CIPHER *EVP_sm4_ecb(void);
+OPENSSL_EXPORT const EVP_CIPHER *EVP_sm4_cbc(void);
+OPENSSL_EXPORT const EVP_CIPHER *EVP_sm4_ctr(void);
+OPENSSL_EXPORT const EVP_CIPHER *EVP_sm4_ofb(void);
+OPENSSL_EXPORT const EVP_CIPHER *EVP_sm4_cfb(void);
+
 // EVP_enc_null returns a 'cipher' that passes plaintext through as
 // ciphertext.
 OPENSSL_EXPORT const EVP_CIPHER *EVP_enc_null(void);
