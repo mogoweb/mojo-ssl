@@ -4086,6 +4086,12 @@ extern "C" {
 #define OBJ_secp256k1 1L, 3L, 132L, 0L, 10L
 #define OBJ_ENC_secp256k1 0x2b, 0x81, 0x04, 0x00, 0x0a
 
+#define SN_sm2 "SM2"
+#define LN_sm2 "sm2"
+#define NID_sm2 971
+#define OBJ_sm2 1L, 2L, 156L, 10197L, 1L, 301L
+#define OBJ_ENC_sm2 0x2a, 0x81, 0x1c, 0xcf, 0x55, 0x01, 0x82, 0x2d
+
 #define SN_secp384r1 "secp384r1"
 #define NID_secp384r1 715
 #define OBJ_secp384r1 1L, 3L, 132L, 0L, 34L
