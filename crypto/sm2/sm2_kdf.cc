@@ -19,8 +19,10 @@
 
 #include <string.h>
 
-#include "../../internal.h"
+#include "../internal.h"
 
+
+BSSL_NAMESPACE_BEGIN
 
 // X9.63 KDF (equivalent to SM2 KDF)
 // K = KDF(Z, klen)
@@ -83,3 +85,5 @@ err:
   OPENSSL_cleanse(digest, sizeof(digest));
   return ret;
 }
+
+BSSL_NAMESPACE_END

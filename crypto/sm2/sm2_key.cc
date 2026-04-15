@@ -21,11 +21,11 @@
 
 #include <string.h>
 
-#include "../../internal.h"
+#include "../internal.h"
 #include "../fipsmodule/ec/internal.h"
 
 
-BSSL_NAMESPACE_BEGIN
+using namespace bssl;
 
 size_t SM2_ciphertext_size(size_t plaintext_len) {
   // ASN.1 DER encoding overhead:
@@ -130,5 +130,3 @@ int SM2_generate_key(EC_KEY *key) {
 
   return 1;
 }
-
-BSSL_NAMESPACE_END

@@ -26,9 +26,9 @@ extern "C" {
 // sm2_kdf implements X9.63 KDF (equivalent to SM2 KDF).
 // It derives |out_len| bytes from shared secret |z| of length |z_len|
 // using hash function |md|. Returns 1 on success, 0 on failure.
-int sm2_kdf(uint8_t *out, size_t out_len,
-            const uint8_t *z, size_t z_len,
-            const EVP_MD *md);
+OPENSSL_EXPORT int sm2_kdf(uint8_t *out, size_t out_len,
+                           const uint8_t *z, size_t z_len,
+                           const EVP_MD *md);
 
 
 #if defined(__cplusplus)
