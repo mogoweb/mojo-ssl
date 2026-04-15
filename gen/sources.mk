@@ -273,6 +273,7 @@ boringssl_bssl_sources := \
   tool/rand.cc \
   tool/server.cc \
   tool/sign.cc \
+  tool/sm4.cc \
   tool/tool.cc \
   tool/transport_common.cc
 
