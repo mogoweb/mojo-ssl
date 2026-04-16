@@ -50,6 +50,8 @@ static const nid_triple kTriples[] = {
     {NID_ML_DSA_44, NID_undef, NID_ML_DSA_44},
     {NID_ML_DSA_65, NID_undef, NID_ML_DSA_65},
     {NID_ML_DSA_87, NID_undef, NID_ML_DSA_87},
+    // SM2-with-SM3 signature algorithm (GM/T 0003-2012).
+    {NID_SM2_with_SM3, NID_sm3, NID_sm2},
 };
 
 int OBJ_find_sigid_algs(int sign_nid, int *out_digest_nid, int *out_pkey_nid) {
