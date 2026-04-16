@@ -204,3 +204,43 @@ err:
   OPENSSL_free(buf);
   return ret;
 }
+
+// sm2_compute_msg_hash computes e = SM3(Z || msg)
+BIGNUM *sm2_compute_msg_hash(const EC_KEY *key,
+                              const uint8_t *id, size_t id_len,
+                              const uint8_t *msg, size_t msg_len) {
+  if (key == NULL || msg == NULL) {
+    return NULL;
+  }
+
+  BIGNUM *e = NULL;
+  uint8_t *z = NULL;
+  EVP_MD_CTX md_ctx;
+  EVP_MD_CTX_init(&md_ctx);
+
+  // Compute Z
+  z = reinterpret_cast<uint8_t *>(OPENSSL_malloc(32));  // SM3 output size
+  if (z == NULL) {
+    goto done;
+  }
+
+  if (!SM2_compute_z_digest(z, key, id, id_len)) {
+    goto done;
+  }
+
+  // Compute e = SM3(Z || msg)
+  if (!EVP_DigestInit_ex(&md_ctx, EVP_sm3(), NULL) ||
+      !EVP_DigestUpdate(&md_ctx, z, 32) ||
+      !EVP_DigestUpdate(&md_ctx, msg, msg_len) ||
+      !EVP_DigestFinal_ex(&md_ctx, z, NULL)) {
+    goto done;
+  }
+
+  // Convert to BIGNUM
+  e = BN_bin2bn(z, 32, NULL);
+
+done:
+  OPENSSL_free(z);
+  EVP_MD_CTX_cleanup(&md_ctx);
+  return e;
+}

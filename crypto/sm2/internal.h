@@ -43,6 +43,13 @@ OPENSSL_EXPORT int sm2_kdf(uint8_t *out, size_t out_len,
 OPENSSL_EXPORT int SM2_compute_z_digest(uint8_t *out, const EC_KEY *key,
                                         const uint8_t *id, size_t id_len);
 
+// sm2_compute_msg_hash computes e = SM3(Z || msg) where Z is computed
+// from the key and user ID. Caller must BN_free() the result.
+// Returns NULL on error.
+BIGNUM *sm2_compute_msg_hash(const EC_KEY *key,
+                              const uint8_t *id, size_t id_len,
+                              const uint8_t *msg, size_t msg_len);
+
 
 #if defined(__cplusplus)
 }  // extern C

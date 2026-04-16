@@ -19,6 +19,7 @@
 #include <openssl/nid.h>
 #include <openssl/sm2.h>
 
+#include "internal.h"
 #include "../test/test_util.h"
 
 
@@ -312,4 +313,26 @@ TEST(SM2Test, ComputeZDigest) {
     }
   }
   EXPECT_FALSE(all_zero);
+}
+
+// Test internal message hash computation
+TEST(SM2Test, ComputeMsgHash) {
+  if (!SM2CurveAvailable()) {
+    GTEST_SKIP() << "SM2 curve not available";
+  }
+
+  bssl::UniquePtr<EC_KEY> key(EC_KEY_new_by_curve_name(NID_sm2));
+  ASSERT_TRUE(key);
+  ASSERT_TRUE(SM2_generate_key(key.get()));
+
+  const char *msg = "Hello, SM2 Signature!";
+  size_t msg_len = strlen(msg);
+
+  // Compute e = SM3(Z || M)
+  bssl::UniquePtr<BIGNUM> e(sm2_compute_msg_hash(key.get(), nullptr, 0,
+                                                   (const uint8_t *)msg, msg_len));
+  ASSERT_TRUE(e);
+
+  // e should be non-zero
+  EXPECT_FALSE(BN_is_zero(e.get()));
 }
