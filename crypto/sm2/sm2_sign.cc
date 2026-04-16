@@ -28,6 +28,8 @@
 #include "../internal.h"
 #include "internal.h"
 
+using namespace bssl;
+
 
 // SM2_compute_z_digest computes Z = SM3(ENTL || ID || a || b || xG || yG || xA || yA)
 // per GM/T 0003-2012 section 5.5.
@@ -224,6 +226,7 @@ BIGNUM *sm2_compute_msg_hash(const EC_KEY *key,
   // Compute Z
   z = reinterpret_cast<uint8_t *>(OPENSSL_malloc(32));  // SM3 output size
   if (z == NULL) {
+    OPENSSL_PUT_ERROR(SM2, ERR_R_MALLOC_FAILURE);
     goto done;
   }
 
@@ -393,9 +396,15 @@ ECDSA_SIG *sm2_sig_gen(const EC_KEY *key, const BIGNUM *e) {
     // A7: Create signature
     sig = ECDSA_SIG_new();
     if (sig == NULL) {
+      OPENSSL_PUT_ERROR(SM2, ERR_R_MALLOC_FAILURE);
       goto done;
     }
     if (!ECDSA_SIG_set0(sig, r, s)) {
+      // ECDSA_SIG_set0 takes ownership and frees r/s on failure
+      ECDSA_SIG_free(sig);
+      sig = NULL;
+      r = s = NULL;  // Prevent double-free in cleanup
+      OPENSSL_PUT_ERROR(SM2, ERR_R_INTERNAL_ERROR);
       goto done;
     }
     r = NULL;
@@ -556,7 +565,7 @@ int SM2_sign_with_id(const EC_KEY *key,
     return 0;
   }
 
-  memcpy(sig, der, der_len);
+  OPENSSL_memcpy(sig, der, der_len);
   *sig_len = der_len;
   OPENSSL_free(der);
   return 1;
