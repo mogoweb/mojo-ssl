@@ -307,6 +307,58 @@ const EVP_PKEY_ASN1_METHOD sm2_asn1_meth = {
 
 }  // namespace
 
+int EVP_PKEY_set1_SM2(EVP_PKEY *pkey, EC_KEY *key) {
+  if (key == nullptr) {
+    return 0;
+  }
+
+  // Verify the key is on SM2 curve
+  const EC_GROUP *group = EC_KEY_get0_group(key);
+  if (group == nullptr || EC_GROUP_get_curve_name(group) != NID_sm2) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
+    return 0;
+  }
+
+  EC_KEY_up_ref(key);
+  if (!EVP_PKEY_assign_SM2(pkey, key)) {
+    EC_KEY_free(key);
+    return 0;
+  }
+  return 1;
+}
+
+int EVP_PKEY_assign_SM2(EVP_PKEY *pkey, EC_KEY *key) {
+  if (key == nullptr) {
+    return 0;
+  }
+
+  // Verify the key is on SM2 curve
+  const EC_GROUP *group = EC_KEY_get0_group(key);
+  if (group == nullptr || EC_GROUP_get_curve_name(group) != NID_sm2) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
+    return 0;
+  }
+
+  evp_pkey_set0(FromOpaque(pkey), &sm2_asn1_meth, key);
+  return 1;
+}
+
+EC_KEY *EVP_PKEY_get0_SM2(const EVP_PKEY *pkey) {
+  if (EVP_PKEY_id(pkey) != EVP_PKEY_SM2) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_EXPECTING_A_SM2_KEY);
+    return nullptr;
+  }
+  return reinterpret_cast<EC_KEY *>(FromOpaque(pkey)->pkey);
+}
+
+EC_KEY *EVP_PKEY_get1_SM2(const EVP_PKEY *pkey) {
+  EC_KEY *ec_key = EVP_PKEY_get0_SM2(pkey);
+  if (ec_key != nullptr) {
+    EC_KEY_up_ref(ec_key);
+  }
+  return ec_key;
+}
+
 // sm2_pkey_meth is the PKEY method for SM2 keys.
 const EVP_PKEY_CTX_METHOD sm2_pkey_meth = {
     /*pkey_id=*/EVP_PKEY_SM2,
