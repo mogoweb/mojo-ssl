@@ -598,3 +598,15 @@ int SM2_verify_with_id(const EC_KEY *key,
   // Verify signature
   return sm2_sig_verify(key, sig_struct.get(), e.get());
 }
+
+int SM2_sign(const EC_KEY *key,
+             const uint8_t *msg, size_t msg_len,
+             uint8_t *sig, size_t *sig_len) {
+  return SM2_sign_with_id(key, NULL, 0, msg, msg_len, sig, sig_len);
+}
+
+int SM2_verify(const EC_KEY *key,
+               const uint8_t *msg, size_t msg_len,
+               const uint8_t *sig, size_t sig_len) {
+  return SM2_verify_with_id(key, NULL, 0, msg, msg_len, sig, sig_len);
+}

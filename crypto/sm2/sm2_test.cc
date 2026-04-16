@@ -551,6 +551,45 @@ TEST(SM2Test, SignVerifyDefaultId) {
                                    sig, sig_len));
 }
 
+// Test SM2_sign and SM2_verify convenience functions
+TEST(SM2Test, SignVerifyConvenience) {
+  if (!SM2CurveAvailable()) {
+    GTEST_SKIP() << "SM2 curve not available";
+  }
+
+  bssl::UniquePtr<EC_KEY> key(EC_KEY_new_by_curve_name(NID_sm2));
+  ASSERT_TRUE(key);
+  ASSERT_TRUE(SM2_generate_key(key.get()));
+
+  const char *msg = "Hello, SM2 with default ID!";
+
+  // Sign with default ID using convenience function
+  uint8_t sig[72];
+  size_t sig_len = sizeof(sig);
+  ASSERT_TRUE(SM2_sign(key.get(),
+                        (const uint8_t *)msg, strlen(msg),
+                        sig, &sig_len));
+
+  // Verify with default ID using convenience function
+  EXPECT_TRUE(SM2_verify(key.get(),
+                          (const uint8_t *)msg, strlen(msg),
+                          sig, sig_len));
+
+  // Verify with wrong message should fail
+  const char *wrong_msg = "Wrong message";
+  EXPECT_FALSE(SM2_verify(key.get(),
+                           (const uint8_t *)wrong_msg, strlen(wrong_msg),
+                           sig, sig_len));
+
+  // Verify with wrong key should fail
+  bssl::UniquePtr<EC_KEY> key2(EC_KEY_new_by_curve_name(NID_sm2));
+  ASSERT_TRUE(key2);
+  ASSERT_TRUE(SM2_generate_key(key2.get()));
+  EXPECT_FALSE(SM2_verify(key2.get(),
+                           (const uint8_t *)msg, strlen(msg),
+                           sig, sig_len));
+}
+
 // Test SM2 sign/verify error handling
 TEST(SM2Test, SignVerifyErrorHandling) {
   if (!SM2CurveAvailable()) {

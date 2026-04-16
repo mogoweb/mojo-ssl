@@ -93,6 +93,20 @@ OPENSSL_EXPORT int SM2_verify_with_id(const EC_KEY *key,
                                       const uint8_t *msg, size_t msg_len,
                                       const uint8_t *sig, size_t sig_len);
 
+// SM2_sign signs |msg_len| bytes from |msg| using |key| with default user ID.
+// The signature is written to |sig| and its length stored in |*sig_len|.
+// The |sig| buffer must have at least |SM2_signature_size()| bytes.
+// Returns 1 on success, 0 on error.
+OPENSSL_EXPORT int SM2_sign(const EC_KEY *key,
+                            const uint8_t *msg, size_t msg_len,
+                            uint8_t *sig, size_t *sig_len);
+
+// SM2_verify verifies |sig_len| bytes from |sig| using |key| with default user ID.
+// Returns 1 on success, 0 on failure.
+OPENSSL_EXPORT int SM2_verify(const EC_KEY *key,
+                              const uint8_t *msg, size_t msg_len,
+                              const uint8_t *sig, size_t sig_len);
+
 
 // Error codes for SM2 operations.
 #define SM2_R_INVALID_PRIVATE_KEY 100
