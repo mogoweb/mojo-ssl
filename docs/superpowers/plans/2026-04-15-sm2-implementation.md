@@ -50,7 +50,7 @@
 Run: `grep -n "NID_sm2\|1199" include/openssl/nid.h`
 Expected: 仅显示新添加的定义
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add include/openssl/nid.h
@@ -879,7 +879,7 @@ Run: `go run ./util/pregenerate`
 
 Expected: 成功更新 `gen/sources.*` 文件
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add build.json gen/sources.cmake gen/sources.gni gen/sources.mk gen/sources.bzl gen/sources.json
@@ -920,7 +920,7 @@ git commit -m "sm2: add prefix symbols"
 **Files:**
 - Create: `crypto/sm2/sm2_test.cc`
 
-- [ ] **Step 1: 创建 `crypto/sm2/sm2_test.cc`**
+- [x] **Step 1: 创建 `crypto/sm2/sm2_test.cc`**
 
 ```c
 // Copyright 2026 The BoringSSL Authors
@@ -1104,7 +1104,7 @@ TEST(SM2Test, CiphertextSize) {
 }
 ```
 
-- [ ] **Step 2: 构建并运行测试**
+- [x] **Step 2: 构建并运行测试**
 
 Run: 
 ```bash
@@ -1114,7 +1114,7 @@ cmake -GNinja -B build && ninja -C build crypto_test
 
 Expected: 所有测试通过
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add crypto/sm2/sm2_test.cc
@@ -1130,7 +1130,7 @@ git commit -m "sm2: add unit tests"
 - Modify: `crypto/fipsmodule/ec/builtin_curves.h`
 - Modify: `crypto/fipsmodule/ec/ec.c` (if exists)
 
-- [ ] **Step 1: 在 `crypto/fipsmodule/ec/builtin_curves.h` 添加 SM2 曲线预计算值**
+- [x] **Step 1: 在 `crypto/fipsmodule/ec/builtin_curves.h` 添加 SM2 曲线预计算值**
 
 SM2 曲线参数（来自 GM/T 0003-2012）：
 
@@ -1190,7 +1190,7 @@ Run: `go run ./crypto/fipsmodule/ec/make_tables.go`
 
 这会自动生成精确的 Montgomery 预计算值到 `builtin_curves.h`。
 
-- [ ] **Step 3: 在 `crypto/fipsmodule/ec/ec.cc.inc` 添加 SM2 曲线组函数**
+- [x] **Step 3: 在 `crypto/fipsmodule/ec/ec.cc.inc` 添加 SM2 曲线组函数**
 
 在 `EC_group_p521` 函数后添加：
 
@@ -1222,7 +1222,7 @@ DEFINE_METHOD_FUNCTION(EC_GROUP, EC_group_sm2) {
 }
 ```
 
-- [ ] **Step 4: 更新 `EC_GROUP_new_by_curve_name` 函数**
+- [x] **Step 4: 更新 `EC_GROUP_new_by_curve_name` 函数**
 
 找到 `EC_GROUP_new_by_curve_name` 函数的 switch 语句，添加 SM2 case：
 
@@ -1231,13 +1231,13 @@ case NID_sm2:
   return EC_group_sm2();
 ```
 
-- [ ] **Step 5: 构建验证**
+- [x] **Step 5: 构建验证**
 
 Run: `cmake -GNinja -B build && ninja -C build`
 
 Expected: 编译成功，无错误
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add crypto/fipsmodule/ec/ec.cc.inc crypto/fipsmodule/ec/builtin_curves.h
@@ -1251,19 +1251,19 @@ git commit -m "ec: add SM2 curve support"
 **Files:**
 - Test: 整体构建和测试
 
-- [ ] **Step 1: 完整构建**
+- [x] **Step 1: 完整构建**
 
 Run: `rm -rf build && cmake -GNinja -B build && ninja -C build`
 
 Expected: 编译成功，无警告
 
-- [ ] **Step 2: 运行所有 crypto 测试**
+- [x] **Step 2: 运行所有 crypto 测试**
 
 Run: `./build/crypto_test --gtest_filter=SM2*`
 
 Expected: 所有 SM2 测试通过
 
-- [ ] **Step 3: 运行完整测试套件**
+- [x] **Step 3: 运行完整测试套件**
 
 Run: `ninja -C build run_tests`
 
