@@ -1,7 +1,5 @@
 # 与TLCP相关的OID定义
 
-> **注意**：SM OID 支持现已原生内置于 BoringSSL 中。以下文档描述了 SM 相关 OID 在 BoringSSL 中的实现结构。
-
 TLCP（在 Tongsuo 中也称为 NTLS，对应 GB/T 38636-2020 标准）相关的 OID 定义分布在以下几个文件中，形成一套完整的 OID 管理体系。
 
 ---
