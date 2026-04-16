@@ -1048,6 +1048,14 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_set_ec_paramgen_curve_nid(EVP_PKEY_CTX *ctx,
 // for multiple operations.
 OPENSSL_EXPORT int EVP_PKEY_CTX_set_dh_pad(EVP_PKEY_CTX *ctx, int pad);
 
+// EVP_PKEY_CTX_set_sm2_user_id sets the user ID for SM2 signature operations.
+// This affects the Z value computation in the SM2 signature algorithm.
+// If not called, the default user ID "1234567812345678" (SM2_DEFAULT_USER_ID)
+// is used. The |id| parameter is copied internally and may be freed after this
+// call returns. To use the default ID, pass |id_len| as 0.
+OPENSSL_EXPORT int EVP_PKEY_CTX_set_sm2_user_id(EVP_PKEY_CTX *ctx,
+                                                 const uint8_t *id, size_t id_len);
+
 
 // Deprecated functions.
 

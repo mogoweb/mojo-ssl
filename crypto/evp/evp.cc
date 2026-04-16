@@ -354,6 +354,12 @@ int EVP_PKEY_CTX_get_signature_md(EVP_PKEY_CTX *ctx, const EVP_MD **out_md) {
                            0, (void *)out_md);
 }
 
+int EVP_PKEY_CTX_set_sm2_user_id(EVP_PKEY_CTX *ctx, const uint8_t *id,
+                                  size_t id_len) {
+  return EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_SM2, -1, EVP_PKEY_CTRL_SM2_USER_ID,
+                           id_len, const_cast<uint8_t *>(id));
+}
+
 void *EVP_PKEY_get0(const EVP_PKEY *pkey) {
   // Node references, but never calls this function, so for now we return NULL.
   // If other projects require complete support, call |EVP_PKEY_get0_RSA|, etc.,
