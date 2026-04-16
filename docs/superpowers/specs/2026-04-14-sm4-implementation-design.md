@@ -203,7 +203,7 @@ Note: `sm4_tests.txt` is NOT added to build.json (test data file read at runtime
 
 - GB/T 32907-2016 - SM4 block cipher standard (Chinese national standard)
 - Tongsuo implementation: `../Tongsuo/crypto/sm4/sm4.c`
-- Tongsuo documentation: `../Tongsuo/docs/sm4.md`
+- Tongsuo documentation: `docs/tongsuo/sm4.md`
 - BoringSSL AES pattern: `crypto/fipsmodule/aes/`
 - BoringSSL cipher pattern: `crypto/cipher/e_aes*.cc`
 - Existing SM3 pattern: `crypto/sm3/`
