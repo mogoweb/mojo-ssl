@@ -410,3 +410,113 @@ done:
   EC_POINT_free(kG);
   return sig;
 }
+
+// sm2_sig_verify verifies SM2 signature following GM/T 0003-2012 B1-B7
+// B1-B2: Verify r, s in [1, n-1]
+// B5: t = (r + s) mod n, fail if t == 0
+// B6: (x1, y1) = s*G + t*PA
+// B7: r == (e + x1) mod n
+int sm2_sig_verify(const EC_KEY *key, const ECDSA_SIG *sig, const BIGNUM *e) {
+  if (key == NULL || sig == NULL || e == NULL) {
+    OPENSSL_PUT_ERROR(SM2, ERR_R_PASSED_NULL_PARAMETER);
+    return 0;
+  }
+
+  const EC_GROUP *group = EC_KEY_get0_group(key);
+  const EC_POINT *pub_key = EC_KEY_get0_public_key(key);
+
+  if (group == NULL || pub_key == NULL) {
+    OPENSSL_PUT_ERROR(SM2, ERR_R_PASSED_NULL_PARAMETER);
+    return 0;
+  }
+
+  // Get curve order
+  const BIGNUM *order = EC_GROUP_get0_order(group);
+  if (order == NULL) {
+    OPENSSL_PUT_ERROR(SM2, ERR_R_INTERNAL_ERROR);
+    return 0;
+  }
+
+  // B1-B2: Get r, s from signature and verify they are in [1, n-1]
+  const BIGNUM *r, *s;
+  ECDSA_SIG_get0(sig, &r, &s);
+
+  // Verify r >= 1 and r < n
+  if (BN_is_zero(r) || BN_cmp(r, order) >= 0) {
+    OPENSSL_PUT_ERROR(SM2, SM2_R_INVALID_SIGNATURE);
+    return 0;
+  }
+
+  // Verify s >= 1 and s < n
+  if (BN_is_zero(s) || BN_cmp(s, order) >= 0) {
+    OPENSSL_PUT_ERROR(SM2, SM2_R_INVALID_SIGNATURE);
+    return 0;
+  }
+
+  int ret = 0;
+  BN_CTX *ctx = BN_CTX_new();
+  EC_POINT *pt = NULL;
+  BIGNUM *t = NULL, *x1 = NULL, *v = NULL;
+
+  if (ctx == NULL) {
+    goto done;
+  }
+
+  BN_CTX_start(ctx);
+  t = BN_CTX_get(ctx);
+  x1 = BN_CTX_get(ctx);
+  v = BN_CTX_get(ctx);
+  if (v == NULL) {
+    goto done;
+  }
+
+  // B5: t = (r + s) mod n
+  if (!BN_mod_add(t, r, s, order, ctx)) {
+    OPENSSL_PUT_ERROR(SM2, ERR_R_BN_LIB);
+    goto done;
+  }
+
+  // Fail if t == 0
+  if (BN_is_zero(t)) {
+    OPENSSL_PUT_ERROR(SM2, SM2_R_INVALID_SIGNATURE);
+    goto done;
+  }
+
+  // B6: (x1, y1) = s*G + t*PA
+  pt = EC_POINT_new(group);
+  if (pt == NULL) {
+    goto done;
+  }
+
+  // Compute pt = s*G + t*pub_key
+  if (!EC_POINT_mul(group, pt, s, pub_key, t, ctx)) {
+    OPENSSL_PUT_ERROR(SM2, ERR_R_EC_LIB);
+    goto done;
+  }
+
+  // Get x1 coordinate
+  if (!EC_POINT_get_affine_coordinates(group, pt, x1, NULL, ctx)) {
+    OPENSSL_PUT_ERROR(SM2, ERR_R_EC_LIB);
+    goto done;
+  }
+
+  // B7: v = (e + x1) mod n
+  if (!BN_mod_add(v, e, x1, order, ctx)) {
+    OPENSSL_PUT_ERROR(SM2, ERR_R_BN_LIB);
+    goto done;
+  }
+
+  // Verify r == v
+  if (BN_cmp(r, v) != 0) {
+    OPENSSL_PUT_ERROR(SM2, SM2_R_INVALID_SIGNATURE);
+    goto done;
+  }
+
+  ret = 1;
+
+done:
+  EC_POINT_free(pt);
+  BN_CTX_end(ctx);
+  BN_CTX_free(ctx);
+  return ret;
+}

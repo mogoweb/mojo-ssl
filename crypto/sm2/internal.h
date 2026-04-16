@@ -51,6 +51,18 @@ BIGNUM *sm2_compute_msg_hash(const EC_KEY *key,
                               const uint8_t *msg, size_t msg_len);
 
 
+// sm2_sig_gen generates an SM2 signature for hash value e.
+// Follows GM/T 0003-2012 steps A3-A7.
+// Caller must ECDSA_SIG_free() the result.
+// Returns NULL on error.
+ECDSA_SIG *sm2_sig_gen(const EC_KEY *key, const BIGNUM *e);
+
+// sm2_sig_verify verifies SM2 signature.
+// Follows GM/T 0003-2012 steps B1-B7.
+// Returns 1 on success, 0 on failure.
+int sm2_sig_verify(const EC_KEY *key, const ECDSA_SIG *sig, const BIGNUM *e);
+
+
 #if defined(__cplusplus)
 }  // extern C
 #endif

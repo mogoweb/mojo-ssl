@@ -16,6 +16,7 @@
 
 #include <openssl/bn.h>
 #include <openssl/ec.h>
+#include <openssl/ecdsa.h>
 #include <openssl/nid.h>
 #include <openssl/sm2.h>
 
@@ -356,4 +357,65 @@ TEST(SM2Test, ComputeMsgHash) {
 
   // Test NULL message returns NULL
   EXPECT_EQ(sm2_compute_msg_hash(key.get(), nullptr, 0, nullptr, 0), nullptr);
+}
+
+// Test SM2 signature generation
+TEST(SM2Test, SigGen) {
+  if (!SM2CurveAvailable()) {
+    GTEST_SKIP() << "SM2 curve not available";
+  }
+
+  bssl::UniquePtr<EC_KEY> key(EC_KEY_new_by_curve_name(NID_sm2));
+  ASSERT_TRUE(key);
+  ASSERT_TRUE(SM2_generate_key(key.get()));
+
+  // Create a test hash value (e)
+  bssl::UniquePtr<BIGNUM> e(BN_new());
+  ASSERT_TRUE(e);
+  BN_set_word(e.get(), 12345);
+
+  // Generate signature
+  bssl::UniquePtr<ECDSA_SIG> sig(sm2_sig_gen(key.get(), e.get()));
+  ASSERT_TRUE(sig);
+
+  // Verify r and s are not zero and in valid range
+  const BIGNUM *r, *s;
+  ECDSA_SIG_get0(sig.get(), &r, &s);
+  EXPECT_FALSE(BN_is_zero(r));
+  EXPECT_FALSE(BN_is_zero(s));
+
+  // r and s should be less than curve order
+  const EC_GROUP *group = EC_KEY_get0_group(key.get());
+  bssl::UniquePtr<BIGNUM> order(BN_new());
+  ASSERT_TRUE(EC_GROUP_get_order(group, order.get(), nullptr));
+  EXPECT_LT(BN_cmp(r, order.get()), 0);
+  EXPECT_LT(BN_cmp(s, order.get()), 0);
+}
+
+// Test SM2 signature verification
+TEST(SM2Test, SigVerify) {
+  if (!SM2CurveAvailable()) {
+    GTEST_SKIP() << "SM2 curve not available";
+  }
+
+  bssl::UniquePtr<EC_KEY> key(EC_KEY_new_by_curve_name(NID_sm2));
+  ASSERT_TRUE(key);
+  ASSERT_TRUE(SM2_generate_key(key.get()));
+
+  // Create a test hash value
+  bssl::UniquePtr<BIGNUM> e(BN_new());
+  ASSERT_TRUE(e);
+  BN_set_word(e.get(), 12345);
+
+  // Generate signature
+  bssl::UniquePtr<ECDSA_SIG> sig(sm2_sig_gen(key.get(), e.get()));
+  ASSERT_TRUE(sig);
+
+  // Verify signature
+  EXPECT_EQ(1, sm2_sig_verify(key.get(), sig.get(), e.get()));
+
+  // Verify with wrong hash should fail
+  bssl::UniquePtr<BIGNUM> wrong_e(BN_new());
+  BN_set_word(wrong_e.get(), 54321);
+  EXPECT_EQ(0, sm2_sig_verify(key.get(), sig.get(), wrong_e.get()));
 }

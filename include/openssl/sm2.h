@@ -87,6 +87,7 @@ OPENSSL_EXPORT int SM2_compute_z_digest(uint8_t *out, const EC_KEY *key,
 #define SM2_R_BUFFER_TOO_SMALL 105
 #define SM2_R_ID_TOO_LARGE 106
 #define SM2_R_TOO_MANY_ITERATIONS 107
+#define SM2_R_INVALID_SIGNATURE 108
 
 
 #if defined(__cplusplus)
