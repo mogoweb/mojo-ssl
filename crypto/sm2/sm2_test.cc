@@ -15,6 +15,7 @@
 #include <gtest/gtest.h>
 
 #include <openssl/bn.h>
+#include <openssl/bytestring.h>
 #include <openssl/ec.h>
 #include <openssl/ecdsa.h>
 #include <openssl/evp.h>
@@ -675,4 +676,210 @@ TEST(SM2Test, EVPKeyType) {
   const EC_GROUP *group = EC_KEY_get0_group(ec_key);
   ASSERT_TRUE(group);
   EXPECT_EQ(NID_sm2, EC_GROUP_get_curve_name(group));
+}
+
+// Test SM2 EVP sign/verify
+TEST(SM2Test, EVPSignVerify) {
+  if (!SM2CurveAvailable()) {
+    GTEST_SKIP() << "SM2 curve not available";
+  }
+
+  // Generate SM2 key
+  bssl::UniquePtr<EVP_PKEY_CTX> gen_ctx(
+      EVP_PKEY_CTX_new_id(EVP_PKEY_SM2, nullptr));
+  ASSERT_TRUE(gen_ctx);
+  ASSERT_TRUE(EVP_PKEY_keygen_init(gen_ctx.get()));
+
+  EVP_PKEY *raw_pkey = nullptr;
+  ASSERT_TRUE(EVP_PKEY_keygen(gen_ctx.get(), &raw_pkey));
+  bssl::UniquePtr<EVP_PKEY> pkey(raw_pkey);
+
+  const char *msg = "Hello, SM2 EVP!";
+
+  // Sign using one-shot EVP_DigestSign
+  bssl::UniquePtr<EVP_MD_CTX> md_ctx(EVP_MD_CTX_new());
+  ASSERT_TRUE(md_ctx);
+  ASSERT_TRUE(EVP_DigestSignInit(md_ctx.get(), nullptr, EVP_sm3(),
+                                  nullptr, pkey.get()));
+
+  size_t sig_len = 0;
+  ASSERT_TRUE(EVP_DigestSign(md_ctx.get(), nullptr, &sig_len,
+                              (const uint8_t *)msg, strlen(msg)));
+  EXPECT_GT(sig_len, 0u);
+
+  std::vector<uint8_t> sig(sig_len);
+  ASSERT_TRUE(EVP_DigestSign(md_ctx.get(), sig.data(), &sig_len,
+                              (const uint8_t *)msg, strlen(msg)));
+
+  // Verify using one-shot EVP_DigestVerify
+  bssl::UniquePtr<EVP_MD_CTX> verify_ctx(EVP_MD_CTX_new());
+  ASSERT_TRUE(verify_ctx);
+  ASSERT_TRUE(EVP_DigestVerifyInit(verify_ctx.get(), nullptr, EVP_sm3(),
+                                    nullptr, pkey.get()));
+  EXPECT_TRUE(EVP_DigestVerify(verify_ctx.get(), sig.data(), sig_len,
+                                (const uint8_t *)msg, strlen(msg)));
+
+  // Verify with wrong message fails
+  const char *wrong_msg = "Wrong message";
+  bssl::UniquePtr<EVP_MD_CTX> wrong_ctx(EVP_MD_CTX_new());
+  ASSERT_TRUE(wrong_ctx);
+  ASSERT_TRUE(EVP_DigestVerifyInit(wrong_ctx.get(), nullptr, EVP_sm3(),
+                                    nullptr, pkey.get()));
+  EXPECT_FALSE(EVP_DigestVerify(wrong_ctx.get(), sig.data(), sig_len,
+                                 (const uint8_t *)wrong_msg, strlen(wrong_msg)));
+}
+
+// Test SM2 EVP with custom user ID
+TEST(SM2Test, EVPCustomUserId) {
+  if (!SM2CurveAvailable()) {
+    GTEST_SKIP() << "SM2 curve not available";
+  }
+
+  // Generate SM2 key
+  bssl::UniquePtr<EVP_PKEY_CTX> gen_ctx(
+      EVP_PKEY_CTX_new_id(EVP_PKEY_SM2, nullptr));
+  ASSERT_TRUE(gen_ctx);
+  ASSERT_TRUE(EVP_PKEY_keygen_init(gen_ctx.get()));
+
+  EVP_PKEY *raw_pkey = nullptr;
+  ASSERT_TRUE(EVP_PKEY_keygen(gen_ctx.get(), &raw_pkey));
+  bssl::UniquePtr<EVP_PKEY> pkey(raw_pkey);
+
+  const char *msg = "Hello, SM2 with custom ID!";
+  const uint8_t custom_id[] = "custom_user_id";
+
+  // Sign with custom user ID using one-shot EVP_DigestSign
+  bssl::UniquePtr<EVP_MD_CTX> md_ctx(EVP_MD_CTX_new());
+  ASSERT_TRUE(md_ctx);
+  EVP_PKEY_CTX *pctx = nullptr;
+  ASSERT_TRUE(EVP_DigestSignInit(md_ctx.get(), &pctx, EVP_sm3(),
+                                  nullptr, pkey.get()));
+  ASSERT_TRUE(EVP_PKEY_CTX_set_sm2_user_id(pctx, custom_id, sizeof(custom_id) - 1));
+
+  size_t sig_len = 0;
+  ASSERT_TRUE(EVP_DigestSign(md_ctx.get(), nullptr, &sig_len,
+                              (const uint8_t *)msg, strlen(msg)));
+  EXPECT_GT(sig_len, 0u);
+
+  std::vector<uint8_t> sig(sig_len);
+  ASSERT_TRUE(EVP_DigestSign(md_ctx.get(), sig.data(), &sig_len,
+                              (const uint8_t *)msg, strlen(msg)));
+
+  // Verify with same custom user ID succeeds
+  bssl::UniquePtr<EVP_MD_CTX> verify_ctx(EVP_MD_CTX_new());
+  ASSERT_TRUE(verify_ctx);
+  EVP_PKEY_CTX *vctx = nullptr;
+  ASSERT_TRUE(EVP_DigestVerifyInit(verify_ctx.get(), &vctx, EVP_sm3(),
+                                    nullptr, pkey.get()));
+  ASSERT_TRUE(EVP_PKEY_CTX_set_sm2_user_id(vctx, custom_id, sizeof(custom_id) - 1));
+  EXPECT_TRUE(EVP_DigestVerify(verify_ctx.get(), sig.data(), sig_len,
+                                (const uint8_t *)msg, strlen(msg)));
+
+  // Verify with default user ID fails
+  bssl::UniquePtr<EVP_MD_CTX> default_ctx(EVP_MD_CTX_new());
+  ASSERT_TRUE(default_ctx);
+  ASSERT_TRUE(EVP_DigestVerifyInit(default_ctx.get(), nullptr, EVP_sm3(),
+                                    nullptr, pkey.get()));
+  EXPECT_FALSE(EVP_DigestVerify(default_ctx.get(), sig.data(), sig_len,
+                                 (const uint8_t *)msg, strlen(msg)));
+}
+
+// Test SM2 EVP key export/import
+TEST(SM2Test, EVPKeyExportImport) {
+  if (!SM2CurveAvailable()) {
+    GTEST_SKIP() << "SM2 curve not available";
+  }
+
+  // Generate SM2 key
+  bssl::UniquePtr<EVP_PKEY_CTX> gen_ctx(
+      EVP_PKEY_CTX_new_id(EVP_PKEY_SM2, nullptr));
+  ASSERT_TRUE(gen_ctx);
+  ASSERT_TRUE(EVP_PKEY_keygen_init(gen_ctx.get()));
+
+  EVP_PKEY *raw_pkey = nullptr;
+  ASSERT_TRUE(EVP_PKEY_keygen(gen_ctx.get(), &raw_pkey));
+  bssl::UniquePtr<EVP_PKEY> pkey(raw_pkey);
+
+  // Export public key using SubjectPublicKeyInfo format
+  bssl::ScopedCBB cbb;
+  ASSERT_TRUE(CBB_init(cbb.get(), 128));
+  ASSERT_TRUE(EVP_marshal_public_key(cbb.get(), pkey.get()));
+
+  uint8_t *pub_der;
+  size_t pub_len;
+  ASSERT_TRUE(CBB_finish(cbb.get(), &pub_der, &pub_len));
+  bssl::UniquePtr<uint8_t> pub_der_cleanup(pub_der);
+
+  // Import public key
+  CBS cbs;
+  CBS_init(&cbs, pub_der, pub_len);
+  bssl::UniquePtr<EVP_PKEY> imported_pub(EVP_parse_public_key(&cbs));
+  ASSERT_TRUE(imported_pub);
+
+  // Verify it's SM2 type
+  EXPECT_EQ(EVP_PKEY_SM2, EVP_PKEY_id(imported_pub.get()));
+
+  // Export private key using PKCS#8/PrivateKeyInfo format
+  bssl::ScopedCBB priv_cbb;
+  ASSERT_TRUE(CBB_init(priv_cbb.get(), 128));
+  ASSERT_TRUE(EVP_marshal_private_key(priv_cbb.get(), pkey.get()));
+
+  uint8_t *priv_der;
+  size_t priv_len;
+  ASSERT_TRUE(CBB_finish(priv_cbb.get(), &priv_der, &priv_len));
+  bssl::UniquePtr<uint8_t> priv_der_cleanup(priv_der);
+
+  // Import private key
+  CBS priv_cbs;
+  CBS_init(&priv_cbs, priv_der, priv_len);
+  bssl::UniquePtr<EVP_PKEY> imported_priv(EVP_parse_private_key(&priv_cbs));
+  ASSERT_TRUE(imported_priv);
+
+  // Verify it's SM2 type
+  EXPECT_EQ(EVP_PKEY_SM2, EVP_PKEY_id(imported_priv.get()));
+
+  // Sign with original, verify with imported public key
+  const char *msg = "Test message for import/export";
+  bssl::UniquePtr<EVP_MD_CTX> md_ctx(EVP_MD_CTX_new());
+  ASSERT_TRUE(md_ctx);
+  ASSERT_TRUE(EVP_DigestSignInit(md_ctx.get(), nullptr, EVP_sm3(),
+                                  nullptr, pkey.get()));
+
+  size_t sig_len = 0;
+  ASSERT_TRUE(EVP_DigestSign(md_ctx.get(), nullptr, &sig_len,
+                              (const uint8_t *)msg, strlen(msg)));
+
+  std::vector<uint8_t> sig(sig_len);
+  ASSERT_TRUE(EVP_DigestSign(md_ctx.get(), sig.data(), &sig_len,
+                              (const uint8_t *)msg, strlen(msg)));
+
+  // Verify with imported public key using one-shot EVP_DigestVerify
+  bssl::UniquePtr<EVP_MD_CTX> verify_ctx(EVP_MD_CTX_new());
+  ASSERT_TRUE(verify_ctx);
+  ASSERT_TRUE(EVP_DigestVerifyInit(verify_ctx.get(), nullptr, EVP_sm3(),
+                                    nullptr, imported_pub.get()));
+  EXPECT_TRUE(EVP_DigestVerify(verify_ctx.get(), sig.data(), sig_len,
+                                (const uint8_t *)msg, strlen(msg)));
+
+  // Also verify the imported private key works
+  bssl::UniquePtr<EVP_MD_CTX> priv_sign_ctx(EVP_MD_CTX_new());
+  ASSERT_TRUE(priv_sign_ctx);
+  ASSERT_TRUE(EVP_DigestSignInit(priv_sign_ctx.get(), nullptr, EVP_sm3(),
+                                  nullptr, imported_priv.get()));
+
+  size_t sig2_len = 0;
+  ASSERT_TRUE(EVP_DigestSign(priv_sign_ctx.get(), nullptr, &sig2_len,
+                              (const uint8_t *)msg, strlen(msg)));
+
+  std::vector<uint8_t> sig2(sig2_len);
+  ASSERT_TRUE(EVP_DigestSign(priv_sign_ctx.get(), sig2.data(), &sig2_len,
+                              (const uint8_t *)msg, strlen(msg)));
+
+  // Verify this signature with the imported public key
+  bssl::UniquePtr<EVP_MD_CTX> priv_verify_ctx(EVP_MD_CTX_new());
+  ASSERT_TRUE(priv_verify_ctx);
+  ASSERT_TRUE(EVP_DigestVerifyInit(priv_verify_ctx.get(), nullptr, EVP_sm3(),
+                                    nullptr, imported_pub.get()));
+  EXPECT_TRUE(EVP_DigestVerify(priv_verify_ctx.get(), sig2.data(), sig2_len,
+                                (const uint8_t *)msg, strlen(msg)));
 }

@@ -49,6 +49,9 @@ struct SM2_PKEY_CTX {
   // user_id is the user ID for Z value computation.
   uint8_t *user_id = nullptr;
   size_t user_id_len = 0;
+  // md is the message digest. SM2 uses SM3 internally, but we accept
+  // either SM3 or no digest (nullptr, meaning the message is already hashed).
+  const EVP_MD *md = nullptr;
 };
 
 static int pkey_sm2_init(EvpPkeyCtx *ctx) {
@@ -105,6 +108,92 @@ static int pkey_sm2_keygen(EvpPkeyCtx *ctx, EvpPkey *pkey) {
   return 1;
 }
 
+static int pkey_sm2_sign_message(EvpPkeyCtx *ctx, uint8_t *sig,
+                                  size_t *siglen, const uint8_t *tbs,
+                                  size_t tbslen) {
+  const EC_KEY *ec_key = reinterpret_cast<const EC_KEY *>(ctx->pkey->pkey);
+  if (!sig) {
+    *siglen = SM2_signature_size();
+    return 1;
+  }
+
+  if (*siglen < SM2_signature_size()) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_BUFFER_TOO_SMALL);
+    return 0;
+  }
+
+  // Get user ID from context
+  SM2_PKEY_CTX *sm2_ctx = static_cast<SM2_PKEY_CTX *>(ctx->data);
+  const uint8_t *id = sm2_ctx->user_id;
+  size_t id_len = sm2_ctx->user_id_len;
+
+  // Sign using SM2
+  if (!SM2_sign_with_id(ec_key, id, id_len, tbs, tbslen, sig, siglen)) {
+    return 0;
+  }
+
+  return 1;
+}
+
+static int pkey_sm2_verify_message(EvpPkeyCtx *ctx, const uint8_t *sig,
+                                    size_t siglen, const uint8_t *tbs,
+                                    size_t tbslen) {
+  const EC_KEY *ec_key = reinterpret_cast<const EC_KEY *>(ctx->pkey->pkey);
+
+  // Get user ID from context
+  SM2_PKEY_CTX *sm2_ctx = static_cast<SM2_PKEY_CTX *>(ctx->data);
+  const uint8_t *id = sm2_ctx->user_id;
+  size_t id_len = sm2_ctx->user_id_len;
+
+  // Verify using SM2
+  return SM2_verify_with_id(ec_key, id, id_len, tbs, tbslen, sig, siglen);
+}
+
+static int pkey_sm2_ctrl(EvpPkeyCtx *ctx, int type, int p1, void *p2) {
+  SM2_PKEY_CTX *sm2_ctx = static_cast<SM2_PKEY_CTX *>(ctx->data);
+
+  switch (type) {
+    case EVP_PKEY_CTRL_MD: {
+      const EVP_MD *md = reinterpret_cast<const EVP_MD *>(p2);
+      // SM2 uses SM3 internally for the signature algorithm.
+      // We accept SM3 (the standard hash for SM2).
+      // Note: EVP_sm3() currently has NID_undef as its type in BoringSSL,
+      // so we compare the pointer directly.
+      if (md != EVP_sm3()) {
+        OPENSSL_PUT_ERROR(EVP, EVP_R_INVALID_DIGEST_TYPE);
+        return 0;
+      }
+      sm2_ctx->md = md;
+      return 1;
+    }
+
+    case EVP_PKEY_CTRL_GET_MD:
+      *(const EVP_MD **)p2 = sm2_ctx->md;
+      return 1;
+
+    case EVP_PKEY_CTRL_SM2_USER_ID: {
+      // Free existing user ID
+      OPENSSL_free(sm2_ctx->user_id);
+      sm2_ctx->user_id = nullptr;
+      sm2_ctx->user_id_len = 0;
+
+      if (p1 > 0 && p2 != nullptr) {
+        sm2_ctx->user_id = static_cast<uint8_t *>(
+            OPENSSL_memdup(p2, p1));
+        if (!sm2_ctx->user_id) {
+          return 0;
+        }
+        sm2_ctx->user_id_len = p1;
+      }
+      return 1;
+    }
+
+    default:
+      OPENSSL_PUT_ERROR(EVP, EVP_R_COMMAND_NOT_SUPPORTED);
+      return 0;
+  }
+}
+
 // sm2_pub_encode encodes an SM2 public key as a SubjectPublicKeyInfo.
 // SM2 uses the same SEC1 encoding as EC keys.
 static int sm2_pub_encode(CBB *out, const EvpPkey *key) {
@@ -159,7 +248,7 @@ static bssl::evp_decode_result_t sm2_pub_decode(const EVP_PKEY_ALG *alg,
     return evp_decode_error;
   }
 
-  EVP_PKEY_assign_EC_KEY(out, eckey.release());
+  evp_pkey_set0(out, &sm2_asn1_meth, eckey.release());
   return evp_decode_ok;
 }
 
@@ -204,7 +293,7 @@ static bssl::evp_decode_result_t sm2_priv_decode(const EVP_PKEY_ALG *alg,
     return evp_decode_error;
   }
 
-  EVP_PKEY_assign_EC_KEY(out, ec_key.release());
+  evp_pkey_set0(out, &sm2_asn1_meth, ec_key.release());
   return evp_decode_ok;
 }
 
@@ -365,16 +454,16 @@ const EVP_PKEY_CTX_METHOD bssl::sm2_pkey_meth = {
     /*copy=*/pkey_sm2_copy,
     /*cleanup=*/pkey_sm2_cleanup,
     /*keygen=*/pkey_sm2_keygen,
-    /*sign=*/nullptr,              // Implemented via digestsign
-    /*sign_message=*/nullptr,
-    /*verify=*/nullptr,            // Implemented via digestverify
-    /*verify_message=*/nullptr,
+    /*sign=*/nullptr,              // Implemented via sign_message
+    /*sign_message=*/pkey_sm2_sign_message,
+    /*verify=*/nullptr,            // Implemented via verify_message
+    /*verify_message=*/pkey_sm2_verify_message,
     /*verify_recover=*/nullptr,
     /*encrypt=*/nullptr,
     /*decrypt=*/nullptr,
     /*derive=*/nullptr,
     /*paramgen=*/nullptr,
-    /*ctrl=*/nullptr,              // Will add in Phase 3
+    /*ctrl=*/pkey_sm2_ctrl,
 };
 
 // EVP_pkey_sm2 returns the EVP_PKEY_ALG for SM2 keys.
