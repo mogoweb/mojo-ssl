@@ -43,7 +43,6 @@ struct EVP_PKEY_ALG_SM2 : public EVP_PKEY_ALG {
 };
 
 extern const EVP_PKEY_ASN1_METHOD sm2_asn1_meth;
-extern const EVP_PKEY_CTX_METHOD sm2_pkey_meth;
 
 // SM2_PKEY_CTX stores SM2-specific context for EVP operations.
 struct SM2_PKEY_CTX {
@@ -360,7 +359,7 @@ EC_KEY *EVP_PKEY_get1_SM2(const EVP_PKEY *pkey) {
 }
 
 // sm2_pkey_meth is the PKEY method for SM2 keys.
-const EVP_PKEY_CTX_METHOD sm2_pkey_meth = {
+const EVP_PKEY_CTX_METHOD bssl::sm2_pkey_meth = {
     /*pkey_id=*/EVP_PKEY_SM2,
     /*init=*/pkey_sm2_init,
     /*copy=*/pkey_sm2_copy,

@@ -32,7 +32,7 @@ using namespace bssl;
 // |EVP_PKEY_RSA_PSS| keygen.
 static const EVP_PKEY_CTX_METHOD *const evp_methods[] = {
     &rsa_pkey_meth,    &ec_pkey_meth,   &ed25519_pkey_meth,
-    &x25519_pkey_meth, &hkdf_pkey_meth,
+    &x25519_pkey_meth, &hkdf_pkey_meth, &sm2_pkey_meth,
 };
 
 static const EVP_PKEY_CTX_METHOD *evp_pkey_meth_find(int type) {

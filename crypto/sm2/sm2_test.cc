@@ -17,6 +17,7 @@
 #include <openssl/bn.h>
 #include <openssl/ec.h>
 #include <openssl/ecdsa.h>
+#include <openssl/evp.h>
 #include <openssl/nid.h>
 #include <openssl/sm2.h>
 
@@ -649,4 +650,29 @@ TEST(SM2Test, SignVerifyErrorHandling) {
   EXPECT_FALSE(SM2_verify_with_id(key.get(), id, sizeof(id) - 1,
                                    (const uint8_t *)msg, strlen(msg),
                                    sig, sig_len));
+}
+
+// Test SM2 EVP key type
+TEST(SM2Test, EVPKeyType) {
+  // Generate SM2 key via EVP
+  bssl::UniquePtr<EVP_PKEY_CTX> ctx(
+      EVP_PKEY_CTX_new_id(EVP_PKEY_SM2, nullptr));
+  ASSERT_TRUE(ctx);
+  ASSERT_TRUE(EVP_PKEY_keygen_init(ctx.get()));
+
+  EVP_PKEY *raw_pkey = nullptr;
+  ASSERT_TRUE(EVP_PKEY_keygen(ctx.get(), &raw_pkey));
+  bssl::UniquePtr<EVP_PKEY> pkey(raw_pkey);
+
+  // Verify key type
+  EXPECT_EQ(EVP_PKEY_SM2, EVP_PKEY_id(pkey.get()));
+
+  // Verify we can extract EC_KEY
+  EC_KEY *ec_key = EVP_PKEY_get0_SM2(pkey.get());
+  ASSERT_TRUE(ec_key);
+
+  // Verify curve is SM2
+  const EC_GROUP *group = EC_KEY_get0_group(ec_key);
+  ASSERT_TRUE(group);
+  EXPECT_EQ(NID_sm2, EC_GROUP_get_curve_name(group));
 }

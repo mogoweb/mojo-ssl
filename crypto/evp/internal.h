@@ -303,7 +303,8 @@ inline auto GetDefaultEVPAlgorithms() {
       EVP_pkey_ec_p256(),
       EVP_pkey_ec_p384(),
       EVP_pkey_ec_p521(),
-      EVP_pkey_ec_sm2(),
+      EVP_pkey_ec_sm2(),    // EC on SM2 curve (uses ECDSA - legacy)
+      EVP_pkey_sm2(),       // SM2 key type (uses SM2 signature algorithm)
       EVP_pkey_ed25519(),
       EVP_pkey_rsa(),
       EVP_pkey_x25519(),
