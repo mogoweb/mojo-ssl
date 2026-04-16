@@ -24,6 +24,7 @@
 #include <openssl/err.h>
 #include <openssl/mem.h>
 #include <openssl/nid.h>
+#include <openssl/sm2.h>
 #include <openssl/span.h>
 
 #include "../ec/internal.h"
@@ -42,6 +43,68 @@ struct EVP_PKEY_ALG_SM2 : public EVP_PKEY_ALG {
 };
 
 extern const EVP_PKEY_ASN1_METHOD sm2_asn1_meth;
+extern const EVP_PKEY_CTX_METHOD sm2_pkey_meth;
+
+// SM2_PKEY_CTX stores SM2-specific context for EVP operations.
+struct SM2_PKEY_CTX {
+  // user_id is the user ID for Z value computation.
+  uint8_t *user_id = nullptr;
+  size_t user_id_len = 0;
+};
+
+static int pkey_sm2_init(EvpPkeyCtx *ctx) {
+  SM2_PKEY_CTX *sm2_ctx = New<SM2_PKEY_CTX>();
+  if (!sm2_ctx) {
+    return 0;
+  }
+  ctx->data = sm2_ctx;
+  return 1;
+}
+
+static int pkey_sm2_copy(EvpPkeyCtx *dst, EvpPkeyCtx *src) {
+  SM2_PKEY_CTX *src_ctx = static_cast<SM2_PKEY_CTX *>(src->data);
+  SM2_PKEY_CTX *dst_ctx = New<SM2_PKEY_CTX>();
+  if (!dst_ctx) {
+    return 0;
+  }
+
+  if (src_ctx->user_id_len > 0 && src_ctx->user_id != nullptr) {
+    dst_ctx->user_id = static_cast<uint8_t *>(
+        OPENSSL_memdup(src_ctx->user_id, src_ctx->user_id_len));
+    if (!dst_ctx->user_id) {
+      Delete(dst_ctx);
+      return 0;
+    }
+    dst_ctx->user_id_len = src_ctx->user_id_len;
+  }
+
+  dst->data = dst_ctx;
+  return 1;
+}
+
+static void pkey_sm2_cleanup(EvpPkeyCtx *ctx) {
+  SM2_PKEY_CTX *sm2_ctx = static_cast<SM2_PKEY_CTX *>(ctx->data);
+  if (sm2_ctx) {
+    OPENSSL_free(sm2_ctx->user_id);
+    Delete(sm2_ctx);
+    ctx->data = nullptr;
+  }
+}
+
+static int pkey_sm2_keygen(EvpPkeyCtx *ctx, EvpPkey *pkey) {
+  EC_KEY *ec_key = EC_KEY_new_by_curve_name(NID_sm2);
+  if (!ec_key) {
+    return 0;
+  }
+
+  if (!SM2_generate_key(ec_key)) {
+    EC_KEY_free(ec_key);
+    return 0;
+  }
+
+  evp_pkey_set0(pkey, &sm2_asn1_meth, ec_key);
+  return 1;
+}
 
 // sm2_pub_encode encodes an SM2 public key as a SubjectPublicKeyInfo.
 // SM2 uses the same SEC1 encoding as EC keys.
@@ -243,6 +306,25 @@ const EVP_PKEY_ASN1_METHOD sm2_asn1_meth = {
 };
 
 }  // namespace
+
+// sm2_pkey_meth is the PKEY method for SM2 keys.
+const EVP_PKEY_CTX_METHOD sm2_pkey_meth = {
+    /*pkey_id=*/EVP_PKEY_SM2,
+    /*init=*/pkey_sm2_init,
+    /*copy=*/pkey_sm2_copy,
+    /*cleanup=*/pkey_sm2_cleanup,
+    /*keygen=*/pkey_sm2_keygen,
+    /*sign=*/nullptr,              // Implemented via digestsign
+    /*sign_message=*/nullptr,
+    /*verify=*/nullptr,            // Implemented via digestverify
+    /*verify_message=*/nullptr,
+    /*verify_recover=*/nullptr,
+    /*encrypt=*/nullptr,
+    /*decrypt=*/nullptr,
+    /*derive=*/nullptr,
+    /*paramgen=*/nullptr,
+    /*ctrl=*/nullptr,              // Will add in Phase 3
+};
 
 // EVP_pkey_sm2 returns the EVP_PKEY_ALG for SM2 keys.
 const EVP_PKEY_ALG *EVP_pkey_sm2() {
