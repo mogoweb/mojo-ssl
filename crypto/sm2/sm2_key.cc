@@ -48,12 +48,11 @@ size_t SM2_plaintext_size(size_t ciphertext_len) {
   //
   // Minimum overhead: 2 + 34 + 34 + 34 + 2 = 106 bytes
   // With potential sign bytes: up to 110 bytes
-  // Add small safety margin
-  if (ciphertext_len < 108) {
+  // Use 110 bytes overhead to ensure buffer is large enough
+  if (ciphertext_len <= 110) {
     return 0;
   }
-  // Use slightly smaller overhead estimate to ensure buffer is large enough
-  return ciphertext_len - 106;
+  return ciphertext_len - 110;
 }
 
 int SM2_check_private_key(const EC_KEY *key) {
