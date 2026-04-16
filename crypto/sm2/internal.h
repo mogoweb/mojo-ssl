@@ -36,6 +36,14 @@ OPENSSL_EXPORT int sm2_kdf(uint8_t *out, size_t out_len,
                            const EVP_MD *md);
 
 
+// SM2_compute_z_digest computes Z = SM3(ENTL || ID || a || b || xG || yG || xA || yA)
+// ENTL is 16-bit big-endian bit length of ID.
+// If id is NULL, uses SM2_DEFAULT_USER_ID.
+// Returns 1 on success, 0 on error.
+OPENSSL_EXPORT int SM2_compute_z_digest(uint8_t *out, const EC_KEY *key,
+                                        const uint8_t *id, size_t id_len);
+
+
 #if defined(__cplusplus)
 }  // extern C
 #endif

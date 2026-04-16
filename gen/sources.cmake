@@ -474,6 +474,7 @@ set(
   crypto/sm2/sm2.cc
   crypto/sm2/sm2_kdf.cc
   crypto/sm2/sm2_key.cc
+  crypto/sm2/sm2_sign.cc
   crypto/sm3/sm3.cc
   crypto/sm4/sm4.cc
   crypto/spake2plus/spake2plus.cc

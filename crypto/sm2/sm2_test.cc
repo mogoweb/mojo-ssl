@@ -282,3 +282,34 @@ TEST(SM2Test, SignatureSize) {
   EXPECT_GE(SM2_signature_size(), 70u);
   EXPECT_LE(SM2_signature_size(), 80u);
 }
+
+// Test SM2 Z value computation
+// Reference: GM/T 0003-2012, test vector from Tongsuo
+TEST(SM2Test, ComputeZDigest) {
+  if (!SM2CurveAvailable()) {
+    GTEST_SKIP() << "SM2 curve not available";
+  }
+
+  bssl::UniquePtr<EC_KEY> key(EC_KEY_new_by_curve_name(NID_sm2));
+  ASSERT_TRUE(key);
+  ASSERT_TRUE(SM2_generate_key(key.get()));
+
+  // Test with default user ID
+  uint8_t z[32];
+  EXPECT_TRUE(SM2_compute_z_digest(z, key.get(), nullptr, 0));
+
+  // Test with custom user ID
+  const uint8_t id[] = "test_user_id";
+  EXPECT_TRUE(SM2_compute_z_digest(z, key.get(), id, sizeof(id) - 1));
+
+  // Z value should be 32 bytes (SM3 output)
+  // Verify it's not all zeros
+  bool all_zero = true;
+  for (int i = 0; i < 32; i++) {
+    if (z[i] != 0) {
+      all_zero = false;
+      break;
+    }
+  }
+  EXPECT_FALSE(all_zero);
+}

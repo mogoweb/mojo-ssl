@@ -68,6 +68,15 @@ OPENSSL_EXPORT int SM2_decrypt(const EC_KEY *key,
 // SM2 signatures are DER-encoded and contain two 32-byte integers (r and s).
 OPENSSL_EXPORT size_t SM2_signature_size(void);
 
+// SM2_compute_z_digest computes the Z value for SM2 signing.
+// Z = SM3(ENTL || ID || a || b || xG || yG || xA || yA) per GM/T 0003-2012.
+// ENTL is the 16-bit big-endian bit length of the user ID.
+// If |id| is NULL, uses the default user ID "1234567812345678".
+// |out| must have space for 32 bytes (SM3 digest size).
+// Returns 1 on success, 0 on error.
+OPENSSL_EXPORT int SM2_compute_z_digest(uint8_t *out, const EC_KEY *key,
+                                        const uint8_t *id, size_t id_len);
+
 
 // Error codes for SM2 operations.
 #define SM2_R_INVALID_PRIVATE_KEY 100

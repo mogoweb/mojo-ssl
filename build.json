@@ -208,6 +208,7 @@
             "crypto/sm2/sm2.cc",
             "crypto/sm2/sm2_key.cc",
             "crypto/sm2/sm2_kdf.cc",
+            "crypto/sm2/sm2_sign.cc",
             "crypto/bn/bn_asn1.cc",
             "crypto/bn/convert.cc",
             "crypto/bn/div.cc",
