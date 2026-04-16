@@ -274,3 +274,11 @@ TEST(SM2Test, MultipleOperations) {
               Bytes(decrypted.data(), decrypted_len));
   }
 }
+
+// Test SM2 signature size (DER encoded)
+TEST(SM2Test, SignatureSize) {
+  // SM2 signature is DER-encoded SEQUENCE { r INTEGER, s INTEGER }
+  // r and s are 32 bytes each, DER encoding adds ~8 bytes overhead
+  EXPECT_GE(SM2_signature_size(), 70u);
+  EXPECT_LE(SM2_signature_size(), 80u);
+}

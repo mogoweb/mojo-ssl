@@ -64,6 +64,10 @@ OPENSSL_EXPORT int SM2_decrypt(const EC_KEY *key,
                                 const uint8_t *ciphertext, size_t ciphertext_len,
                                 uint8_t *plaintext, size_t *plaintext_len);
 
+// SM2_signature_size returns the maximum size of an SM2 signature.
+// SM2 signatures are DER-encoded and contain two 32-byte integers (r and s).
+OPENSSL_EXPORT size_t SM2_signature_size(void);
+
 
 // Error codes for SM2 operations.
 #define SM2_R_INVALID_PRIVATE_KEY 100

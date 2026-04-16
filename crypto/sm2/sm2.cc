@@ -492,3 +492,21 @@ err:
   }
   return ret;
 }
+
+size_t SM2_signature_size(void) {
+  // SM2 signature is a DER-encoded SEQUENCE of two INTEGERs (r and s).
+  // Each INTEGER can be up to 33 bytes (32 bytes of value + 1 byte length prefix
+  // when the high bit is set, requiring a leading zero).
+  // Maximum DER encoding:
+  //   SEQUENCE tag: 1 byte
+  //   SEQUENCE length: 1-2 bytes (max 0x81 0x48 = 72 bytes)
+  //   INTEGER r tag: 1 byte
+  //   INTEGER r length: 1 byte
+  //   INTEGER r value: up to 33 bytes (with leading zero if needed)
+  //   INTEGER s tag: 1 byte
+  //   INTEGER s length: 1 byte
+  //   INTEGER s value: up to 33 bytes (with leading zero if needed)
+  // Total: approximately 72 bytes for a safe upper bound.
+  // Return a conservative estimate of 72 bytes.
+  return 72;
+}

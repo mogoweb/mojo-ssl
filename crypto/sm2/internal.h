@@ -23,6 +23,11 @@ extern "C" {
 #endif
 
 
+// SM2 default user ID (GM/T 0003-2012 standard)
+#define SM2_DEFAULT_USER_ID "1234567812345678"
+#define SM2_DEFAULT_USER_ID_LEN 16
+
+
 // sm2_kdf implements X9.63 KDF (equivalent to SM2 KDF).
 // It derives |out_len| bytes from shared secret |z| of length |z_len|
 // using hash function |md|. Returns 1 on success, 0 on failure.
