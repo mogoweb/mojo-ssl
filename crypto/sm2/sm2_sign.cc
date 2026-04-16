@@ -27,8 +27,6 @@
 #include "internal.h"
 
 
-using namespace bssl;
-
 // SM2_compute_z_digest computes Z = SM3(ENTL || ID || a || b || xG || yG || xA || yA)
 // per GM/T 0003-2012 section 5.5.
 // ENTL is 16-bit big-endian bit length of ID.
@@ -51,8 +49,15 @@ int SM2_compute_z_digest(uint8_t *out, const EC_KEY *key,
 
   // Use default user ID if not provided
   if (id == NULL) {
-    id = (const uint8_t *)SM2_DEFAULT_USER_ID;
+    id = reinterpret_cast<const uint8_t *>(SM2_DEFAULT_USER_ID);
     id_len = SM2_DEFAULT_USER_ID_LEN;
+  }
+
+  // Validate ID length to prevent overflow in entl computation
+  // Max ID length: (2^16 - 1) / 8 bits = 8191 bytes
+  if (id_len > 8191) {
+    OPENSSL_PUT_ERROR(SM2, SM2_R_ID_TOO_LARGE);
+    return 0;
   }
 
   int ret = 0;
