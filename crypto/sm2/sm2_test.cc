@@ -487,3 +487,127 @@ TEST(SM2Test, SigVerifyEdgeCases) {
   // Test NULL e - should return 0
   EXPECT_EQ(0, sm2_sig_verify(key.get(), sig.get(), nullptr));
 }
+
+// Test SM2 sign/verify with user ID
+TEST(SM2Test, SignVerifyWithId) {
+  if (!SM2CurveAvailable()) {
+    GTEST_SKIP() << "SM2 curve not available";
+  }
+
+  bssl::UniquePtr<EC_KEY> key(EC_KEY_new_by_curve_name(NID_sm2));
+  ASSERT_TRUE(key);
+  ASSERT_TRUE(SM2_generate_key(key.get()));
+
+  const char *msg = "Hello, SM2!";
+  const uint8_t id[] = "test_id";
+
+  // Sign
+  uint8_t sig[72];
+  size_t sig_len = sizeof(sig);
+  ASSERT_TRUE(SM2_sign_with_id(key.get(), id, sizeof(id) - 1,
+                                (const uint8_t *)msg, strlen(msg),
+                                sig, &sig_len));
+
+  // Verify
+  EXPECT_TRUE(SM2_verify_with_id(key.get(), id, sizeof(id) - 1,
+                                  (const uint8_t *)msg, strlen(msg),
+                                  sig, sig_len));
+
+  // Verify with wrong message should fail
+  const char *wrong_msg = "Wrong message";
+  EXPECT_FALSE(SM2_verify_with_id(key.get(), id, sizeof(id) - 1,
+                                   (const uint8_t *)wrong_msg, strlen(wrong_msg),
+                                   sig, sig_len));
+}
+
+// Test SM2 sign/verify with default user ID
+TEST(SM2Test, SignVerifyDefaultId) {
+  if (!SM2CurveAvailable()) {
+    GTEST_SKIP() << "SM2 curve not available";
+  }
+
+  bssl::UniquePtr<EC_KEY> key(EC_KEY_new_by_curve_name(NID_sm2));
+  ASSERT_TRUE(key);
+  ASSERT_TRUE(SM2_generate_key(key.get()));
+
+  const char *msg = "Test with default ID";
+
+  // Sign with NULL ID (uses default)
+  uint8_t sig[72];
+  size_t sig_len = sizeof(sig);
+  ASSERT_TRUE(SM2_sign_with_id(key.get(), nullptr, 0,
+                                (const uint8_t *)msg, strlen(msg),
+                                sig, &sig_len));
+
+  // Verify with NULL ID
+  EXPECT_TRUE(SM2_verify_with_id(key.get(), nullptr, 0,
+                                  (const uint8_t *)msg, strlen(msg),
+                                  sig, sig_len));
+
+  // Verify with wrong ID should fail
+  const uint8_t wrong_id[] = "wrong_id";
+  EXPECT_FALSE(SM2_verify_with_id(key.get(), wrong_id, sizeof(wrong_id) - 1,
+                                   (const uint8_t *)msg, strlen(msg),
+                                   sig, sig_len));
+}
+
+// Test SM2 sign/verify error handling
+TEST(SM2Test, SignVerifyErrorHandling) {
+  if (!SM2CurveAvailable()) {
+    GTEST_SKIP() << "SM2 curve not available";
+  }
+
+  bssl::UniquePtr<EC_KEY> key(EC_KEY_new_by_curve_name(NID_sm2));
+  ASSERT_TRUE(key);
+  ASSERT_TRUE(SM2_generate_key(key.get()));
+
+  const char *msg = "Test message";
+  const uint8_t id[] = "test_id";
+  uint8_t sig[72];
+  size_t sig_len = sizeof(sig);
+
+  // Test NULL key
+  EXPECT_FALSE(SM2_sign_with_id(nullptr, id, sizeof(id) - 1,
+                                 (const uint8_t *)msg, strlen(msg),
+                                 sig, &sig_len));
+  EXPECT_FALSE(SM2_verify_with_id(nullptr, id, sizeof(id) - 1,
+                                   (const uint8_t *)msg, strlen(msg),
+                                   sig, sig_len));
+
+  // Test NULL message
+  EXPECT_FALSE(SM2_sign_with_id(key.get(), id, sizeof(id) - 1,
+                                 nullptr, 0, sig, &sig_len));
+  EXPECT_FALSE(SM2_verify_with_id(key.get(), id, sizeof(id) - 1,
+                                   nullptr, 0, sig, sig_len));
+
+  // Test NULL signature buffer
+  EXPECT_FALSE(SM2_sign_with_id(key.get(), id, sizeof(id) - 1,
+                                 (const uint8_t *)msg, strlen(msg),
+                                 nullptr, &sig_len));
+
+  // Test NULL sig_len
+  EXPECT_FALSE(SM2_sign_with_id(key.get(), id, sizeof(id) - 1,
+                                 (const uint8_t *)msg, strlen(msg),
+                                 sig, nullptr));
+
+  // Test NULL signature for verify
+  EXPECT_FALSE(SM2_verify_with_id(key.get(), id, sizeof(id) - 1,
+                                   (const uint8_t *)msg, strlen(msg),
+                                   nullptr, 0));
+
+  // Test buffer too small
+  uint8_t small_sig[1];
+  size_t small_len = sizeof(small_sig);
+  EXPECT_FALSE(SM2_sign_with_id(key.get(), id, sizeof(id) - 1,
+                                 (const uint8_t *)msg, strlen(msg),
+                                 small_sig, &small_len));
+
+  // Test corrupted signature
+  ASSERT_TRUE(SM2_sign_with_id(key.get(), id, sizeof(id) - 1,
+                                (const uint8_t *)msg, strlen(msg),
+                                sig, &sig_len));
+  sig[0] ^= 0xFF;  // Corrupt first byte
+  EXPECT_FALSE(SM2_verify_with_id(key.get(), id, sizeof(id) - 1,
+                                   (const uint8_t *)msg, strlen(msg),
+                                   sig, sig_len));
+}

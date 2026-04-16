@@ -15,6 +15,7 @@
 #include <openssl/sm2.h>
 
 #include <openssl/bn.h>
+#include <openssl/bytestring.h>
 #include <openssl/digest.h>
 #include <openssl/ec.h>
 #include <openssl/ecdsa.h>
@@ -519,4 +520,72 @@ done:
   BN_CTX_end(ctx);
   BN_CTX_free(ctx);
   return ret;
+}
+
+int SM2_sign_with_id(const EC_KEY *key,
+                     const uint8_t *id, size_t id_len,
+                     const uint8_t *msg, size_t msg_len,
+                     uint8_t *sig, size_t *sig_len) {
+  if (key == NULL || msg == NULL || sig == NULL || sig_len == NULL) {
+    OPENSSL_PUT_ERROR(SM2, ERR_R_PASSED_NULL_PARAMETER);
+    return 0;
+  }
+
+  // Compute e = SM3(Z || msg)
+  bssl::UniquePtr<BIGNUM> e(sm2_compute_msg_hash(key, id, id_len, msg, msg_len));
+  if (!e) {
+    return 0;
+  }
+
+  // Generate signature
+  bssl::UniquePtr<ECDSA_SIG> sig_struct(sm2_sig_gen(key, e.get()));
+  if (!sig_struct) {
+    return 0;
+  }
+
+  // Encode as DER
+  uint8_t *der = NULL;
+  size_t der_len;
+  if (!ECDSA_SIG_to_bytes(&der, &der_len, sig_struct.get())) {
+    return 0;
+  }
+
+  if (der_len > *sig_len) {
+    OPENSSL_free(der);
+    OPENSSL_PUT_ERROR(SM2, SM2_R_BUFFER_TOO_SMALL);
+    return 0;
+  }
+
+  memcpy(sig, der, der_len);
+  *sig_len = der_len;
+  OPENSSL_free(der);
+  return 1;
+}
+
+int SM2_verify_with_id(const EC_KEY *key,
+                       const uint8_t *id, size_t id_len,
+                       const uint8_t *msg, size_t msg_len,
+                       const uint8_t *sig, size_t sig_len) {
+  if (key == NULL || msg == NULL || sig == NULL) {
+    OPENSSL_PUT_ERROR(SM2, ERR_R_PASSED_NULL_PARAMETER);
+    return 0;
+  }
+
+  // Parse DER signature
+  CBS cbs;
+  CBS_init(&cbs, sig, sig_len);
+  bssl::UniquePtr<ECDSA_SIG> sig_struct(ECDSA_SIG_parse(&cbs));
+  if (!sig_struct || CBS_len(&cbs) != 0) {
+    OPENSSL_PUT_ERROR(SM2, SM2_R_INVALID_ENCODING);
+    return 0;
+  }
+
+  // Compute e = SM3(Z || msg)
+  bssl::UniquePtr<BIGNUM> e(sm2_compute_msg_hash(key, id, id_len, msg, msg_len));
+  if (!e) {
+    return 0;
+  }
+
+  // Verify signature
+  return sm2_sig_verify(key, sig_struct.get(), e.get());
 }
