@@ -414,6 +414,7 @@ set(
   crypto/evp/p_hkdf.cc
   crypto/evp/p_mldsa.cc
   crypto/evp/p_rsa.cc
+  crypto/evp/p_sm2.cc
   crypto/evp/p_x25519.cc
   crypto/evp/pbkdf.cc
   crypto/evp/print.cc

@@ -287,6 +287,7 @@ extern const EVP_PKEY_CTX_METHOD ed25519_pkey_meth;
 extern const EVP_PKEY_CTX_METHOD x25519_pkey_meth;
 extern const EVP_PKEY_CTX_METHOD hkdf_pkey_meth;
 extern const EVP_PKEY_CTX_METHOD dh_pkey_meth;
+extern const EVP_PKEY_CTX_METHOD sm2_pkey_meth;
 
 // evp_pkey_set0 sets |pkey|'s method to |method| and data to |pkey_data|,
 // freeing any key that may previously have been configured. This function takes
