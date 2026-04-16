@@ -107,6 +107,11 @@ secg-ellipticCurve 10		: secp256k1
 #       and is therefore omitted
 secg-ellipticCurve 34		: secp384r1
 secg-ellipticCurve 35		: secp521r1
+
+# SM2 curve (GM/T 0003-2012)
+# OID: 1.2.156.10197.1.301
+member-body 156 10197 1 301	: SM2			: sm2
+
 # SECG characteristic two curves OIDs
 secg-ellipticCurve 4		: sect113r1
 secg-ellipticCurve 5		: sect113r2

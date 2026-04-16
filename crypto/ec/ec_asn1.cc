@@ -47,6 +47,7 @@ static auto get_all_groups() {
       EC_group_p256(),
       EC_group_p384(),
       EC_group_p521(),
+      EC_group_sm2(),
   };
 }
 

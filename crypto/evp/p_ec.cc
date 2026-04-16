@@ -323,6 +323,11 @@ const EVP_PKEY_ALG *EVP_pkey_ec_p521() {
   return &kAlg;
 }
 
+const EVP_PKEY_ALG *EVP_pkey_ec_sm2() {
+  static const EVP_PKEY_ALG_EC kAlg = {{&ec_asn1_meth}, &EC_group_sm2};
+  return &kAlg;
+}
+
 int EVP_PKEY_set1_EC_KEY(EVP_PKEY *pkey, EC_KEY *key) {
   if (EVP_PKEY_assign_EC_KEY(pkey, key)) {
     EC_KEY_up_ref(key);

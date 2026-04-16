@@ -161,6 +161,7 @@ OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ec_p224(void);
 OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ec_p256(void);
 OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ec_p384(void);
 OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ec_p521(void);
+OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ec_sm2(void);
 
 // EVP_pkey_x25519 implements X25519 keys (RFC 7748), encoded as in RFC 8410.
 // The |EVP_PKEY_id| value is |EVP_PKEY_X25519|.

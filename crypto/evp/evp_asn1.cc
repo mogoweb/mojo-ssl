@@ -407,7 +407,8 @@ int i2d_DSA_PUBKEY(const DSA *dsa, uint8_t **outp) {
 EC_KEY *d2i_EC_PUBKEY(EC_KEY **out, const uint8_t **inp, long len) {
   return D2IFromCBS(out, inp, len, [](CBS *cbs) -> UniquePtr<EC_KEY> {
     const EVP_PKEY_ALG *const algs[] = {EVP_pkey_ec_p224(), EVP_pkey_ec_p256(),
-                                        EVP_pkey_ec_p384(), EVP_pkey_ec_p521()};
+                                        EVP_pkey_ec_p384(), EVP_pkey_ec_p521(),
+                                        EVP_pkey_ec_sm2()};
     UniquePtr<EVP_PKEY> pkey = parse_spki(cbs, algs);
     if (pkey == nullptr) {
       return nullptr;

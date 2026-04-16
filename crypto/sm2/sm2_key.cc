@@ -39,12 +39,21 @@ size_t SM2_ciphertext_size(size_t plaintext_len) {
 
 size_t SM2_plaintext_size(size_t ciphertext_len) {
   // Reverse estimate: subtract ASN.1 overhead
-  // Use conservative estimate (larger overhead = smaller plaintext estimate)
-  // This ensures buffer is always large enough
-  if (ciphertext_len < 110) {
+  // ASN.1 structure:
+  // - SEQUENCE header: 2-4 bytes
+  // - C1x INTEGER: 2 header + 32 data (+ 1 if high bit set for sign)
+  // - C1y INTEGER: 2 header + 32 data (+ 1 if high bit set for sign)
+  // - C3 OCTET STRING: 2 header + 32 data
+  // - C2 OCTET STRING: 2 header + plaintext_len data
+  //
+  // Minimum overhead: 2 + 34 + 34 + 34 + 2 = 106 bytes
+  // With potential sign bytes: up to 110 bytes
+  // Add small safety margin
+  if (ciphertext_len < 108) {
     return 0;
   }
-  return ciphertext_len - 110;
+  // Use slightly smaller overhead estimate to ensure buffer is large enough
+  return ciphertext_len - 106;
 }
 
 int SM2_check_private_key(const EC_KEY *key) {
