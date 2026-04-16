@@ -17,6 +17,7 @@
 #include <openssl/bn.h>
 #include <openssl/digest.h>
 #include <openssl/ec.h>
+#include <openssl/ecdsa.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
 #include <openssl/nid.h>
@@ -244,4 +245,168 @@ done:
   OPENSSL_free(z);
   EVP_MD_CTX_cleanup(&md_ctx);
   return e;
+}
+
+// sm2_sig_gen generates SM2 signature following GM/T 0003-2012 A3-A7
+// A3: Generate random k in [1, n-1]
+// A4: Compute (x1, y1) = k * G
+// A5: r = (e + x1) mod n, retry if r=0 or r+k=n
+// A6: s = (dA + 1)^{-1} * (k - r * dA) mod n, retry if s=0
+// A7: Output (r, s)
+ECDSA_SIG *sm2_sig_gen(const EC_KEY *key, const BIGNUM *e) {
+  if (key == NULL || e == NULL) {
+    OPENSSL_PUT_ERROR(SM2, ERR_R_PASSED_NULL_PARAMETER);
+    return NULL;
+  }
+
+  const BIGNUM *dA = EC_KEY_get0_private_key(key);
+  const EC_GROUP *group = EC_KEY_get0_group(key);
+
+  if (dA == NULL || group == NULL) {
+    OPENSSL_PUT_ERROR(SM2, ERR_R_PASSED_NULL_PARAMETER);
+    return NULL;
+  }
+
+  // Get curve order first (must be before any goto)
+  const BIGNUM *order = EC_GROUP_get0_order(group);
+  if (order == NULL) {
+    OPENSSL_PUT_ERROR(SM2, ERR_R_INTERNAL_ERROR);
+    return NULL;
+  }
+
+  ECDSA_SIG *sig = NULL;
+  EC_POINT *kG = NULL;
+  BN_CTX *ctx = BN_CTX_new();
+  BIGNUM *k = NULL, *rk = NULL, *x1 = NULL, *tmp = NULL;
+  BIGNUM *r = NULL, *s = NULL;
+  int iterations = 0;
+
+  if (ctx == NULL) {
+    goto done;
+  }
+
+  kG = EC_POINT_new(group);
+  if (kG == NULL) {
+    goto done;
+  }
+
+  BN_CTX_start(ctx);
+  k = BN_CTX_get(ctx);
+  rk = BN_CTX_get(ctx);
+  x1 = BN_CTX_get(ctx);
+  tmp = BN_CTX_get(ctx);
+  if (tmp == NULL) {
+    goto done;
+  }
+
+  r = BN_new();
+  s = BN_new();
+  if (r == NULL || s == NULL) {
+    goto done;
+  }
+
+  // Retry loop for signature generation
+  static const int kMaxIterations = 32;
+  for (;;) {
+    if (++iterations > kMaxIterations) {
+      OPENSSL_PUT_ERROR(SM2, SM2_R_TOO_MANY_ITERATIONS);
+      goto done;
+    }
+
+    // A3: Generate random k in [1, n-1]
+    // BN_rand_range generates in [0, n-1], so we retry if k=0
+    if (!BN_rand_range(k, order)) {
+      OPENSSL_PUT_ERROR(SM2, ERR_R_BN_LIB);
+      goto done;
+    }
+    // Ensure k is not zero
+    if (BN_is_zero(k)) {
+      continue;
+    }
+
+    // A4: Compute (x1, y1) = k * G
+    if (!EC_POINT_mul(group, kG, k, NULL, NULL, ctx) ||
+        !EC_POINT_get_affine_coordinates(group, kG, x1, NULL, ctx)) {
+      OPENSSL_PUT_ERROR(SM2, ERR_R_EC_LIB);
+      goto done;
+    }
+
+    // A5: r = (e + x1) mod n
+    if (!BN_mod_add(r, e, x1, order, ctx)) {
+      OPENSSL_PUT_ERROR(SM2, ERR_R_BN_LIB);
+      goto done;
+    }
+
+    // Retry if r == 0 or r + k == n
+    if (BN_is_zero(r)) {
+      continue;
+    }
+
+    if (!BN_add(rk, r, k)) {
+      OPENSSL_PUT_ERROR(SM2, ERR_R_BN_LIB);
+      goto done;
+    }
+    if (BN_cmp(rk, order) == 0) {
+      continue;
+    }
+
+    // A6: s = (dA + 1)^{-1} * (k - r * dA) mod n
+    // Compute (dA + 1)
+    if (!BN_add(s, dA, BN_value_one())) {
+      OPENSSL_PUT_ERROR(SM2, ERR_R_BN_LIB);
+      goto done;
+    }
+    // Compute modular inverse of (dA + 1)
+    if (!BN_mod_inverse(s, s, order, ctx)) {
+      // If inverse doesn't exist, retry with new k
+      continue;
+    }
+    // tmp = r * dA mod n
+    if (!BN_mod_mul(tmp, r, dA, order, ctx)) {
+      OPENSSL_PUT_ERROR(SM2, ERR_R_BN_LIB);
+      goto done;
+    }
+    // tmp = k - r * dA (can be negative, handle with mod)
+    if (!BN_sub(tmp, k, tmp)) {
+      OPENSSL_PUT_ERROR(SM2, ERR_R_BN_LIB);
+      goto done;
+    }
+    // Ensure tmp is positive mod n
+    if (BN_is_negative(tmp)) {
+      if (!BN_add(tmp, tmp, order)) {
+        OPENSSL_PUT_ERROR(SM2, ERR_R_BN_LIB);
+        goto done;
+      }
+    }
+    // s = (dA + 1)^{-1} * (k - r * dA) mod n
+    if (!BN_mod_mul(s, s, tmp, order, ctx)) {
+      OPENSSL_PUT_ERROR(SM2, ERR_R_BN_LIB);
+      goto done;
+    }
+
+    // Retry if s == 0
+    if (BN_is_zero(s)) {
+      continue;
+    }
+
+    // A7: Create signature
+    sig = ECDSA_SIG_new();
+    if (sig == NULL) {
+      goto done;
+    }
+    if (!ECDSA_SIG_set0(sig, r, s)) {
+      goto done;
+    }
+    r = NULL;
+    s = NULL;
+    break;
+  }
+
+done:
+  BN_free(r);
+  BN_free(s);
+  BN_CTX_end(ctx);
+  BN_CTX_free(ctx);
+  EC_POINT_free(kG);
+  return sig;
 }
