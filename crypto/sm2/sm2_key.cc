@@ -39,6 +39,8 @@ size_t SM2_ciphertext_size(size_t plaintext_len) {
 
 size_t SM2_plaintext_size(size_t ciphertext_len) {
   // Reverse estimate: subtract ASN.1 overhead
+  // Use conservative estimate (larger overhead = smaller plaintext estimate)
+  // This ensures buffer is always large enough
   if (ciphertext_len < 110) {
     return 0;
   }

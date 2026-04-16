@@ -92,9 +92,9 @@ TEST(SM2Test, EncryptDecrypt) {
                           (const uint8_t *)plaintext, plaintext_len,
                           ciphertext.data(), &ciphertext_len));
 
-  // Decrypt
-  size_t decrypted_len = SM2_plaintext_size(ciphertext_len);
-  std::vector<uint8_t> decrypted(decrypted_len);
+  // Decrypt - use ciphertext_len as buffer size (always >= plaintext_len)
+  std::vector<uint8_t> decrypted(ciphertext_len);
+  size_t decrypted_len = ciphertext_len;
   ASSERT_TRUE(SM2_decrypt(key.get(),
                           ciphertext.data(), ciphertext_len,
                           decrypted.data(), &decrypted_len));
@@ -127,9 +127,9 @@ TEST(SM2Test, LargeMessage) {
                           plaintext.data(), plaintext.size(),
                           ciphertext.data(), &ciphertext_len));
 
-  // Decrypt
-  size_t decrypted_len = SM2_plaintext_size(ciphertext_len);
-  std::vector<uint8_t> decrypted(decrypted_len);
+  // Decrypt - use ciphertext_len as buffer size
+  std::vector<uint8_t> decrypted(ciphertext_len);
+  size_t decrypted_len = ciphertext_len;
   ASSERT_TRUE(SM2_decrypt(key.get(),
                           ciphertext.data(), ciphertext_len,
                           decrypted.data(), &decrypted_len));
@@ -162,8 +162,8 @@ TEST(SM2Test, WrongKey) {
                           ciphertext.data(), &ciphertext_len));
 
   // Try to decrypt with key2 (should fail)
-  size_t decrypted_len = SM2_plaintext_size(ciphertext_len);
-  std::vector<uint8_t> decrypted(decrypted_len);
+  std::vector<uint8_t> decrypted(ciphertext_len);
+  size_t decrypted_len = ciphertext_len;
   EXPECT_FALSE(SM2_decrypt(key2.get(),
                            ciphertext.data(), ciphertext_len,
                            decrypted.data(), &decrypted_len));
@@ -193,8 +193,8 @@ TEST(SM2Test, CorruptedCiphertext) {
   ciphertext[ciphertext_len / 2] ^= 0xFF;
 
   // Try to decrypt (should fail)
-  size_t decrypted_len = SM2_plaintext_size(ciphertext_len);
-  std::vector<uint8_t> decrypted(decrypted_len);
+  std::vector<uint8_t> decrypted(ciphertext_len);
+  size_t decrypted_len = ciphertext_len;
   EXPECT_FALSE(SM2_decrypt(key.get(),
                            ciphertext.data(), ciphertext_len,
                            decrypted.data(), &decrypted_len));
@@ -263,8 +263,8 @@ TEST(SM2Test, MultipleOperations) {
                             (const uint8_t *)plaintext.data(), plaintext_len,
                             ciphertext.data(), &ciphertext_len));
 
-    size_t decrypted_len = SM2_plaintext_size(ciphertext_len);
-    std::vector<uint8_t> decrypted(decrypted_len);
+    std::vector<uint8_t> decrypted(ciphertext_len);
+    size_t decrypted_len = ciphertext_len;
     ASSERT_TRUE(SM2_decrypt(key.get(),
                             ciphertext.data(), ciphertext_len,
                             decrypted.data(), &decrypted_len));

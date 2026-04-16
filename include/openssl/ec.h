@@ -72,6 +72,9 @@ OPENSSL_EXPORT const EC_GROUP *EC_group_p384(void);
 // EC_group_p521 returns an |EC_GROUP| for P-521, also known as secp521r1.
 OPENSSL_EXPORT const EC_GROUP *EC_group_p521(void);
 
+// EC_group_sm2 returns an |EC_GROUP| for SM2, defined in GM/T 0003-2012.
+OPENSSL_EXPORT const EC_GROUP *EC_group_sm2(void);
+
 // EC_GROUP_new_by_curve_name returns the |EC_GROUP| object for the elliptic
 // curve specified by |nid|, or NULL on unsupported NID.  For OpenSSL
 // compatibility, this function returns a non-const pointer which may be passed
@@ -83,8 +86,9 @@ OPENSSL_EXPORT const EC_GROUP *EC_group_p521(void);
 // - |NID_X9_62_prime256v1| (P-256)
 // - |NID_secp384r1| (P-384)
 // - |NID_secp521r1| (P-521)
+// - |NID_sm2| (SM2)
 //
-// Calling this function causes all four curves to be linked into the binary.
+// Calling this function causes all curves to be linked into the binary.
 // Prefer calling |EC_group_*| to allow the static linker to drop unused curves.
 //
 // If in doubt, use |NID_X9_62_prime256v1|, or see the curve25519.h header for

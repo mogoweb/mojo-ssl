@@ -135,6 +135,9 @@ int SM2_encrypt(const EC_KEY *key,
   size_t field_size = 0;
   size_t z_len = 0;
   const BIGNUM *order = NULL;
+  CBB cbb, child;
+  uint8_t *cbb_out = NULL;
+  size_t cbb_out_len = 0;
 
   bn_ctx = BN_CTX_new();
   k = BN_new();
@@ -236,7 +239,6 @@ int SM2_encrypt(const EC_KEY *key,
 
   // Step 7: Encode ciphertext as ASN.1 DER
   // SEQUENCE { C1x INTEGER, C1y INTEGER, C3 OCTET STRING, C2 OCTET STRING }
-  CBB cbb, child;
   CBB_zero(&cbb);
   if (!CBB_init(&cbb, SM2_ciphertext_size(plaintext_len)) ||
       !CBB_add_asn1(&cbb, &child, CBS_ASN1_SEQUENCE) ||
@@ -244,13 +246,26 @@ int SM2_encrypt(const EC_KEY *key,
       !BN_marshal_asn1(&child, y1) ||
       !CBB_add_asn1_octet_string(&child, C3, sizeof(C3)) ||
       !CBB_add_asn1_octet_string(&child, C2, plaintext_len) ||
-      !CBB_finish(&cbb, &ciphertext, ciphertext_len)) {
+      !CBB_finish(&cbb, &cbb_out, &cbb_out_len)) {
     CBB_cleanup(&cbb);
     OPENSSL_PUT_ERROR(SM2, SM2_R_ASN1_ERROR);
     OPENSSL_free(C2);
     C2 = NULL;
     goto err;
   }
+
+  // Copy result to caller's buffer
+  if (cbb_out_len > *ciphertext_len) {
+    OPENSSL_free(cbb_out);
+    OPENSSL_PUT_ERROR(SM2, SM2_R_BUFFER_TOO_SMALL);
+    OPENSSL_cleanse(C2, plaintext_len);
+    OPENSSL_free(C2);
+    C2 = NULL;
+    goto err;
+  }
+  OPENSSL_memcpy(ciphertext, cbb_out, cbb_out_len);
+  *ciphertext_len = cbb_out_len;
+  OPENSSL_free(cbb_out);
 
   OPENSSL_cleanse(C2, plaintext_len);
   OPENSSL_free(C2);

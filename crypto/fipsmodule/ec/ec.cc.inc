@@ -175,6 +175,32 @@ DEFINE_METHOD_FUNCTION(EC_GROUP, EC_group_p521) {
   out->field_greater_than_order = 1;
 }
 
+DEFINE_METHOD_FUNCTION(EC_GROUP, EC_group_sm2) {
+  out->curve_name = NID_sm2;
+  out->comment = "SM2";
+  // OID: 1.2.156.10197.1.301
+  static const uint8_t kOIDSM2[] = {0x2a, 0x81, 0x1c, 0xcf, 0x55, 0x01, 0x82, 0x2d};
+  static_assert(sizeof(kOIDSM2) <= sizeof(out->oid));
+  OPENSSL_memcpy(out->oid, kOIDSM2, sizeof(kOIDSM2));
+  out->oid_len = sizeof(kOIDSM2);
+
+  ec_group_init_static_mont(&out->field, std::size(kSM2Field), kSM2Field,
+                            kSM2FieldRR, kSM2FieldN0);
+  ec_group_init_static_mont(&out->order, std::size(kSM2Order), kSM2Order,
+                            kSM2OrderRR, kSM2OrderN0);
+
+  out->meth = EC_GFp_mont_method();
+  out->generator.group = out;
+  OPENSSL_memcpy(out->generator.raw.X.words, kSM2MontGX, sizeof(kSM2MontGX));
+  OPENSSL_memcpy(out->generator.raw.Y.words, kSM2MontGY, sizeof(kSM2MontGY));
+  OPENSSL_memcpy(out->generator.raw.Z.words, kSM2FieldR, sizeof(kSM2FieldR));
+  OPENSSL_memcpy(out->b.words, kSM2MontB, sizeof(kSM2MontB));
+
+  ec_group_set_a_minus3(out);
+  out->has_order = 1;
+  out->field_greater_than_order = 1;
+}
+
 EC_GROUP *EC_GROUP_new_curve_GFp(const BIGNUM *p, const BIGNUM *a,
                                  const BIGNUM *b, BN_CTX *ctx) {
   if (BN_num_bytes(p) > EC_MAX_BYTES) {
@@ -279,6 +305,8 @@ EC_GROUP *EC_GROUP_new_by_curve_name(int nid) {
       return (EC_GROUP *)EC_group_p384();
     case NID_secp521r1:
       return (EC_GROUP *)EC_group_p521();
+    case NID_sm2:
+      return (EC_GROUP *)EC_group_sm2();
     default:
       OPENSSL_PUT_ERROR(EC, EC_R_UNKNOWN_GROUP);
       return nullptr;
