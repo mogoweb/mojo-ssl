@@ -319,12 +319,12 @@ int EVP_PKEY_set1_SM2(EVP_PKEY *pkey, EC_KEY *key) {
     return 0;
   }
 
-  EC_KEY_up_ref(key);
-  if (!EVP_PKEY_assign_SM2(pkey, key)) {
-    EC_KEY_free(key);
-    return 0;
+  // Follow the canonical pattern: assign first (takes ownership), then up_ref
+  if (EVP_PKEY_assign_SM2(pkey, key)) {
+    EC_KEY_up_ref(key);
+    return 1;
   }
-  return 1;
+  return 0;
 }
 
 int EVP_PKEY_assign_SM2(EVP_PKEY *pkey, EC_KEY *key) {
