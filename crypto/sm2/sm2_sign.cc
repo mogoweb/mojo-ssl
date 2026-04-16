@@ -506,8 +506,8 @@ int sm2_sig_verify(const EC_KEY *key, const ECDSA_SIG *sig, const BIGNUM *e) {
     goto done;
   }
 
-  // Verify r == v
-  if (BN_cmp(r, v) != 0) {
+  // Verify r == v (constant-time comparison to prevent timing attacks)
+  if (!BN_equal_consttime(r, v)) {
     OPENSSL_PUT_ERROR(SM2, SM2_R_INVALID_SIGNATURE);
     goto done;
   }

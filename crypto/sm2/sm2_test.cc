@@ -419,3 +419,71 @@ TEST(SM2Test, SigVerify) {
   BN_set_word(wrong_e.get(), 54321);
   EXPECT_EQ(0, sm2_sig_verify(key.get(), sig.get(), wrong_e.get()));
 }
+
+// Test SM2 signature verification edge cases
+TEST(SM2Test, SigVerifyEdgeCases) {
+  if (!SM2CurveAvailable()) {
+    GTEST_SKIP() << "SM2 curve not available";
+  }
+
+  bssl::UniquePtr<EC_KEY> key(EC_KEY_new_by_curve_name(NID_sm2));
+  ASSERT_TRUE(key);
+  ASSERT_TRUE(SM2_generate_key(key.get()));
+
+  // Create a test hash value
+  bssl::UniquePtr<BIGNUM> e(BN_new());
+  ASSERT_TRUE(e);
+  BN_set_word(e.get(), 12345);
+
+  // Generate a valid signature
+  bssl::UniquePtr<ECDSA_SIG> sig(sm2_sig_gen(key.get(), e.get()));
+  ASSERT_TRUE(sig);
+  const BIGNUM *r, *s;
+  ECDSA_SIG_get0(sig.get(), &r, &s);
+
+  // Test with r=0 - should fail
+  bssl::UniquePtr<ECDSA_SIG> sig_r_zero(ECDSA_SIG_new());
+  BIGNUM *zero = BN_new();
+  BIGNUM *s_copy = BN_dup(s);
+  ECDSA_SIG_set0(sig_r_zero.get(), zero, s_copy);
+  EXPECT_EQ(0, sm2_sig_verify(key.get(), sig_r_zero.get(), e.get()));
+
+  // Test with s=0 - should fail
+  bssl::UniquePtr<ECDSA_SIG> sig_s_zero(ECDSA_SIG_new());
+  BIGNUM *r_copy = BN_dup(r);
+  BIGNUM *zero2 = BN_new();
+  ECDSA_SIG_set0(sig_s_zero.get(), r_copy, zero2);
+  EXPECT_EQ(0, sm2_sig_verify(key.get(), sig_s_zero.get(), e.get()));
+
+  // Test with r>=n (set r equal to curve order)
+  bssl::UniquePtr<ECDSA_SIG> sig_r_ge_n(ECDSA_SIG_new());
+  const EC_GROUP *group = EC_KEY_get0_group(key.get());
+  bssl::UniquePtr<BIGNUM> order(BN_new());
+  ASSERT_TRUE(EC_GROUP_get_order(group, order.get(), nullptr));
+  BIGNUM *r_ge_n = BN_dup(order.get());
+  BIGNUM *s_copy2 = BN_dup(s);
+  ECDSA_SIG_set0(sig_r_ge_n.get(), r_ge_n, s_copy2);
+  EXPECT_EQ(0, sm2_sig_verify(key.get(), sig_r_ge_n.get(), e.get()));
+
+  // Test with s>=n (set s equal to curve order)
+  bssl::UniquePtr<ECDSA_SIG> sig_s_ge_n(ECDSA_SIG_new());
+  BIGNUM *r_copy2 = BN_dup(r);
+  BIGNUM *s_ge_n = BN_dup(order.get());
+  ECDSA_SIG_set0(sig_s_ge_n.get(), r_copy2, s_ge_n);
+  EXPECT_EQ(0, sm2_sig_verify(key.get(), sig_s_ge_n.get(), e.get()));
+
+  // Test with wrong public key
+  bssl::UniquePtr<EC_KEY> key2(EC_KEY_new_by_curve_name(NID_sm2));
+  ASSERT_TRUE(key2);
+  ASSERT_TRUE(SM2_generate_key(key2.get()));
+  EXPECT_EQ(0, sm2_sig_verify(key2.get(), sig.get(), e.get()));
+
+  // Test NULL key - should return 0
+  EXPECT_EQ(0, sm2_sig_verify(nullptr, sig.get(), e.get()));
+
+  // Test NULL sig - should return 0
+  EXPECT_EQ(0, sm2_sig_verify(key.get(), nullptr, e.get()));
+
+  // Test NULL e - should return 0
+  EXPECT_EQ(0, sm2_sig_verify(key.get(), sig.get(), nullptr));
+}
