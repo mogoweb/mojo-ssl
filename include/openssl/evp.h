@@ -116,6 +116,7 @@ OPENSSL_EXPORT int EVP_PKEY_has_private(const EVP_PKEY *pkey);
 #define EVP_PKEY_ML_DSA_44 NID_ML_DSA_44
 #define EVP_PKEY_ML_DSA_65 NID_ML_DSA_65
 #define EVP_PKEY_ML_DSA_87 NID_ML_DSA_87
+#define EVP_PKEY_SM2 NID_sm2
 
 // EVP_PKEY_id returns the type of |pkey|, which is one of the |EVP_PKEY_*|
 // values above. These type values generally correspond to the algorithm OID,
@@ -162,6 +163,12 @@ OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ec_p256(void);
 OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ec_p384(void);
 OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ec_p521(void);
 OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ec_sm2(void);
+
+// EVP_pkey_sm2 returns an |EVP_PKEY_ALG| for an SM2 key. SM2 is a Chinese
+// national standard for elliptic curve signatures (GM/T 0003-2012). It uses
+// the SM2 curve and SM3 hash. The |EVP_PKEY_id| value is |EVP_PKEY_SM2|.
+// Note: SM2 is NOT ECDSA. Use this for SM2 signatures, not EVP_PKEY_EC.
+OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_sm2(void);
 
 // EVP_pkey_x25519 implements X25519 keys (RFC 7748), encoded as in RFC 8410.
 // The |EVP_PKEY_id| value is |EVP_PKEY_X25519|.
@@ -280,6 +287,23 @@ OPENSSL_EXPORT int EVP_PKEY_set1_EC_KEY(EVP_PKEY *pkey, EC_KEY *key);
 OPENSSL_EXPORT int EVP_PKEY_assign_EC_KEY(EVP_PKEY *pkey, EC_KEY *key);
 OPENSSL_EXPORT EC_KEY *EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey);
 OPENSSL_EXPORT EC_KEY *EVP_PKEY_get1_EC_KEY(const EVP_PKEY *pkey);
+
+// EVP_PKEY_set1_SM2 sets the EC_KEY of |pkey| to |key| as an SM2 key,
+// incrementing |key|'s reference count. It returns one on success and zero
+// on error. The |key| must be on the SM2 curve.
+OPENSSL_EXPORT int EVP_PKEY_set1_SM2(EVP_PKEY *pkey, EC_KEY *key);
+
+// EVP_PKEY_assign_SM2 sets the EC_KEY of |pkey| to |key| as an SM2 key.
+// It takes ownership of |key|. The |key| must be on the SM2 curve.
+OPENSSL_EXPORT int EVP_PKEY_assign_SM2(EVP_PKEY *pkey, EC_KEY *key);
+
+// EVP_PKEY_get0_SM2 returns the EC_KEY stored in |pkey| as an SM2 key,
+// or NULL if |pkey| is not an SM2 key.
+OPENSSL_EXPORT EC_KEY *EVP_PKEY_get0_SM2(const EVP_PKEY *pkey);
+
+// EVP_PKEY_get1_SM2 returns the EC_KEY stored in |pkey| as an SM2 key,
+// or NULL if |pkey| is not an SM2 key. It increments the reference count.
+OPENSSL_EXPORT EC_KEY *EVP_PKEY_get1_SM2(const EVP_PKEY *pkey);
 
 OPENSSL_EXPORT int EVP_PKEY_set1_DH(EVP_PKEY *pkey, DH *key);
 OPENSSL_EXPORT int EVP_PKEY_assign_DH(EVP_PKEY *pkey, DH *key);
