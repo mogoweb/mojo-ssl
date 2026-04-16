@@ -328,11 +328,32 @@ TEST(SM2Test, ComputeMsgHash) {
   const char *msg = "Hello, SM2 Signature!";
   size_t msg_len = strlen(msg);
 
-  // Compute e = SM3(Z || M)
+  // Compute e = SM3(Z || M) with default ID
   bssl::UniquePtr<BIGNUM> e(sm2_compute_msg_hash(key.get(), nullptr, 0,
-                                                   (const uint8_t *)msg, msg_len));
+                                                   reinterpret_cast<const uint8_t *>(msg), msg_len));
   ASSERT_TRUE(e);
-
-  // e should be non-zero
   EXPECT_FALSE(BN_is_zero(e.get()));
+
+  // Test with custom ID
+  const uint8_t custom_id[] = "custom_id";
+  bssl::UniquePtr<BIGNUM> e2(sm2_compute_msg_hash(key.get(), custom_id, sizeof(custom_id) - 1,
+                                                    reinterpret_cast<const uint8_t *>(msg), msg_len));
+  ASSERT_TRUE(e2);
+  EXPECT_FALSE(BN_is_zero(e2.get()));
+
+  // Different IDs should produce different hashes
+  EXPECT_NE(BN_cmp(e.get(), e2.get()), 0);
+
+  // Test deterministic output
+  bssl::UniquePtr<BIGNUM> e3(sm2_compute_msg_hash(key.get(), nullptr, 0,
+                                                    reinterpret_cast<const uint8_t *>(msg), msg_len));
+  ASSERT_TRUE(e3);
+  EXPECT_EQ(BN_cmp(e.get(), e3.get()), 0);  // Same input = same output
+
+  // Test NULL key returns NULL
+  EXPECT_EQ(sm2_compute_msg_hash(nullptr, nullptr, 0,
+                                  reinterpret_cast<const uint8_t *>(msg), msg_len), nullptr);
+
+  // Test NULL message returns NULL
+  EXPECT_EQ(sm2_compute_msg_hash(key.get(), nullptr, 0, nullptr, 0), nullptr);
 }

@@ -210,6 +210,7 @@ BIGNUM *sm2_compute_msg_hash(const EC_KEY *key,
                               const uint8_t *id, size_t id_len,
                               const uint8_t *msg, size_t msg_len) {
   if (key == NULL || msg == NULL) {
+    OPENSSL_PUT_ERROR(SM2, ERR_R_PASSED_NULL_PARAMETER);
     return NULL;
   }
 
