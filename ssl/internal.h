@@ -261,6 +261,7 @@ BSSL_NAMESPACE_BEGIN
 // SSL_kPSK is only set for plain PSK, not ECDHE_PSK.
 #define SSL_kPSK 0x00000004u
 #define SSL_kGENERIC 0x00000008u
+#define SSL_kSM2 0x00000010u
 
 // Bits for |algorithm_auth| (server authentication).
 #define SSL_aRSA_SIGN 0x00000001u
@@ -269,8 +270,9 @@ BSSL_NAMESPACE_BEGIN
 // SSL_aPSK is set for both PSK and ECDHE_PSK.
 #define SSL_aPSK 0x00000008u
 #define SSL_aGENERIC 0x00000010u
+#define SSL_aSM2 0x00000020u
 
-#define SSL_aCERT (SSL_aRSA_SIGN | SSL_aRSA_DECRYPT | SSL_aECDSA)
+#define SSL_aCERT (SSL_aRSA_SIGN | SSL_aRSA_DECRYPT | SSL_aECDSA | SSL_aSM2)
 
 // Bits for |algorithm_enc| (symmetric encryption).
 #define SSL_3DES 0x00000001u
@@ -279,6 +281,8 @@ BSSL_NAMESPACE_BEGIN
 #define SSL_AES128GCM 0x00000008u
 #define SSL_AES256GCM 0x00000010u
 #define SSL_CHACHA20POLY1305 0x00000020u
+#define SSL_SM4CBC 0x00000040u
+#define SSL_SM4GCM 0x00000080u
 
 #define SSL_AES (SSL_AES128 | SSL_AES256 | SSL_AES128GCM | SSL_AES256GCM)
 
@@ -287,11 +291,13 @@ BSSL_NAMESPACE_BEGIN
 #define SSL_SHA256 0x00000002u
 // SSL_AEAD is set for all AEADs.
 #define SSL_AEAD 0x00000004u
+#define SSL_SM3 0x00000008u
 
 // Bits for |algorithm_prf| (handshake digest).
 #define SSL_HANDSHAKE_MAC_DEFAULT 0x1
 #define SSL_HANDSHAKE_MAC_SHA256 0x2
 #define SSL_HANDSHAKE_MAC_SHA384 0x4
+#define SSL_HANDSHAKE_MAC_SM3 0x8
 
 // SSL_MAX_MD_SIZE is size of the largest hash function used in TLS, SHA-384.
 #define SSL_MAX_MD_SIZE 48

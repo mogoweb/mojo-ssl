@@ -2882,6 +2882,7 @@ boringssl_ssl_sources := \
   ssl/ssl_versions.cc \
   ssl/ssl_x509.cc \
   ssl/t1_enc.cc \
+  ssl/tlcp_method.cc \
   ssl/tls13_both.cc \
   ssl/tls13_client.cc \
   ssl/tls13_enc.cc \
@@ -2904,7 +2905,8 @@ boringssl_ssl_test_sources := \
   ssl/span_test.cc \
   ssl/ssl_c_test.c \
   ssl/ssl_internal_test.cc \
-  ssl/ssl_test.cc
+  ssl/ssl_test.cc \
+  ssl/tlcp_test.cc
 
 boringssl_test_support_sources := \
   crypto/test/abi_test.cc \

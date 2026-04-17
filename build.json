@@ -740,7 +740,8 @@
             "ssl/tls13_enc.cc",
             "ssl/tls13_server.cc",
             "ssl/tls_method.cc",
-            "ssl/tls_record.cc"
+            "ssl/tls_record.cc",
+            "ssl/tlcp_method.cc"
         ],
         "hdrs": [
             "include/openssl/dtls1.h",
@@ -1039,7 +1040,8 @@
             "ssl/span_test.cc",
             "ssl/ssl_c_test.c",
             "ssl/ssl_internal_test.cc",
-            "ssl/ssl_test.cc"
+            "ssl/ssl_test.cc",
+            "ssl/tlcp_test.cc"
         ]
     },
     "decrepit_test": {
