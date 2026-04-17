@@ -8,6 +8,11 @@
 
 #include <openssl/ssl.h>
 #include <openssl/tlcp.h>
+#include <openssl/asn1.h>
+#include <openssl/evp.h>
+#include <openssl/nid.h>
+#include <openssl/rand.h>
+#include <openssl/x509.h>
 
 #include "test/test_state.h"
 #include <gtest/gtest.h>
@@ -72,17 +77,60 @@ TEST(TLCPDualCertTest, LoadSignCertificate) {
   SSL_CTX *ctx = SSL_CTX_new(TLCP_method());
   ASSERT_NE(ctx, nullptr);
 
-  // Create a dummy SM2 key and certificate for testing
-  EVP_PKEY *pkey = EVP_PKEY_new();
-  EXPECT_NE(pkey, nullptr);
+  // Test error handling: Call with NULL parameters and verify it returns 0
+  EXPECT_EQ(SSL_CTX_use_tlcp_sign_certificate(nullptr, nullptr, nullptr), 0);
+  EXPECT_EQ(SSL_CTX_use_tlcp_enc_certificate(nullptr, nullptr, nullptr), 0);
 
-  X509 *cert = X509_new();
-  EXPECT_NE(cert, nullptr);
+  // Create an SSL object and test SSL-level functions with NULL parameters
+  SSL *ssl = SSL_new(ctx);
+  ASSERT_NE(ssl, nullptr);
 
-  // For now, just test the API exists
-  // Real tests will use actual SM2 certificates
+  EXPECT_EQ(SSL_use_tlcp_sign_certificate(nullptr, nullptr, nullptr), 0);
+  EXPECT_EQ(SSL_use_tlcp_enc_certificate(nullptr, nullptr, nullptr), 0);
 
-  X509_free(cert);
-  EVP_PKEY_free(pkey);
+  SSL_free(ssl);
+  SSL_CTX_free(ctx);
+}
+
+TEST(TLCPDualCertTest, NullParameters) {
+  SSL_CTX *ctx = SSL_CTX_new(TLCP_method());
+  ASSERT_NE(ctx, nullptr);
+
+  // Generate SM2 key pair
+  bssl::UniquePtr<EVP_PKEY_CTX> pctx(EVP_PKEY_CTX_new_id(EVP_PKEY_SM2, nullptr));
+  ASSERT_TRUE(pctx);
+  ASSERT_TRUE(EVP_PKEY_keygen_init(pctx.get()));
+  EVP_PKEY *raw_pkey = nullptr;
+  ASSERT_TRUE(EVP_PKEY_keygen(pctx.get(), &raw_pkey));
+  bssl::UniquePtr<EVP_PKEY> pkey(raw_pkey);
+
+  // Create a minimal certificate
+  bssl::UniquePtr<X509> cert(X509_new());
+  ASSERT_TRUE(cert);
+  ASSERT_TRUE(X509_set_version(cert.get(), X509_VERSION_3));
+
+  // Test with NULL context
+  EXPECT_EQ(SSL_CTX_use_tlcp_sign_certificate(nullptr, cert.get(), pkey.get()),
+            0);
+  EXPECT_EQ(SSL_CTX_use_tlcp_enc_certificate(nullptr, cert.get(), pkey.get()),
+            0);
+
+  // Test with NULL certificate
+  EXPECT_EQ(SSL_CTX_use_tlcp_sign_certificate(ctx, nullptr, pkey.get()), 0);
+  EXPECT_EQ(SSL_CTX_use_tlcp_enc_certificate(ctx, nullptr, pkey.get()), 0);
+
+  // Test with NULL key
+  EXPECT_EQ(SSL_CTX_use_tlcp_sign_certificate(ctx, cert.get(), nullptr), 0);
+  EXPECT_EQ(SSL_CTX_use_tlcp_enc_certificate(ctx, cert.get(), nullptr), 0);
+
+  // Create SSL object to test SSL-level functions
+  SSL *ssl = SSL_new(ctx);
+  ASSERT_NE(ssl, nullptr);
+
+  // Test with NULL SSL
+  EXPECT_EQ(SSL_use_tlcp_sign_certificate(nullptr, cert.get(), pkey.get()), 0);
+  EXPECT_EQ(SSL_use_tlcp_enc_certificate(nullptr, cert.get(), pkey.get()), 0);
+
+  SSL_free(ssl);
   SSL_CTX_free(ctx);
 }
