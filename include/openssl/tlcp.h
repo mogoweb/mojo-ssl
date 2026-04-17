@@ -25,6 +25,9 @@ extern "C" {
 #define TLCP_ECDHE_SM2_SM4_CBC_SM3 0x0003
 #define TLCP_ECDHE_SM2_SM4_GCM_SM3 0x0004
 
+// TLCP cipher suite names (OpenSSL style).
+#define TLCP_TXT_ECC_SM2_SM4_CBC_SM3 "ECC-SM2-SM4-CBC-SM3"
+
 // TLCP method functions.
 OPENSSL_EXPORT const SSL_METHOD *TLCP_method(void);
 OPENSSL_EXPORT const SSL_METHOD *TLCP_server_method(void);

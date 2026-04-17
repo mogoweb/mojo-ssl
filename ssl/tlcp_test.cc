@@ -40,3 +40,30 @@ TEST(TLCPMethodTest, SSLIsTLCP) {
   SSL_free(ssl);
   SSL_CTX_free(ctx);
 }
+
+TEST(TLCPCipherTest, CipherSuiteRegistration) {
+  SSL_CTX *ctx = SSL_CTX_new(TLCP_method());
+  ASSERT_NE(ctx, nullptr);
+
+  // Set TLCP cipher list
+  int ret = SSL_CTX_set_cipher_list(ctx, "ECC-SM2-SM4-CBC-SM3");
+  EXPECT_EQ(ret, 1);
+
+  SSL_CTX_free(ctx);
+}
+
+TEST(TLCPCipherTest, GetCipherName) {
+  SSL_CTX *ctx = SSL_CTX_new(TLCP_method());
+  ASSERT_NE(ctx, nullptr);
+
+  SSL_CTX_set_cipher_list(ctx, "ECC-SM2-SM4-CBC-SM3");
+
+  SSL *ssl = SSL_new(ctx);
+  ASSERT_NE(ssl, nullptr);
+
+  // After handshake, we would check the cipher name
+  // For now, just verify setup works
+
+  SSL_free(ssl);
+  SSL_CTX_free(ctx);
+}

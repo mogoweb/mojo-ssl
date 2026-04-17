@@ -26,6 +26,7 @@
 #include <openssl/mem.h>
 #include <openssl/sha.h>
 #include <openssl/stack.h>
+#include <openssl/tlcp.h>
 
 #include "../crypto/internal.h"
 #include "internal.h"
@@ -351,6 +352,20 @@ static constexpr SSL_CIPHER kCiphers[] = {
         SSL_CHACHA20POLY1305,
         SSL_AEAD,
         SSL_HANDSHAKE_MAC_SHA256,
+    },
+
+    // TLCP cipher suites (GB/T 38636-2020)
+
+    // Cipher E013: ECC-SM2-SM4-CBC-SM3
+    {
+        TLCP_TXT_ECC_SM2_SM4_CBC_SM3,
+        "TLCP_ECC_SM2_SM4_CBC_SM3",
+        SSL_CIPHER_ECC_SM2_SM4_CBC_SM3,
+        SSL_kSM2,
+        SSL_aSM2,
+        SSL_SM4CBC,
+        SSL_SM3,
+        SSL_HANDSHAKE_MAC_SM3,
     },
 
 };
@@ -1046,6 +1061,7 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
       SSL_CIPHER_RSA_WITH_AES_256_CBC_SHA,
       SSL_CIPHER_PSK_WITH_AES_256_CBC_SHA,
       SSL_CIPHER_RSA_WITH_3DES_EDE_CBC_SHA,
+      SSL_CIPHER_ECC_SM2_SM4_CBC_SM3,
   };
 
   // Set up a linked list of ciphers.
@@ -1261,6 +1277,8 @@ int SSL_CIPHER_get_cipher_nid(const SSL_CIPHER *cipher) {
       return NID_aes_256_gcm;
     case SSL_CHACHA20POLY1305:
       return NID_chacha20_poly1305;
+    case SSL_SM4CBC:
+      return NID_sm4_cbc;
   }
   assert(0);
   return NID_undef;
@@ -1274,6 +1292,8 @@ int SSL_CIPHER_get_digest_nid(const SSL_CIPHER *cipher) {
       return NID_sha1;
     case SSL_SHA256:
       return NID_sha256;
+    case SSL_SM3:
+      return NID_sm3;
   }
   assert(0);
   return NID_undef;
@@ -1289,6 +1309,8 @@ int SSL_CIPHER_get_kx_nid(const SSL_CIPHER *cipher) {
       return NID_kx_psk;
     case SSL_kGENERIC:
       return NID_kx_any;
+    case SSL_kSM2:
+      return NID_kx_sm2;
   }
   assert(0);
   return NID_undef;
@@ -1305,6 +1327,8 @@ int SSL_CIPHER_get_auth_nid(const SSL_CIPHER *cipher) {
       return NID_auth_psk;
     case SSL_aGENERIC:
       return NID_auth_any;
+    case SSL_aSM2:
+      return NID_auth_sm2;
   }
   assert(0);
   return NID_undef;
@@ -1318,6 +1342,8 @@ const EVP_MD *SSL_CIPHER_get_handshake_digest(const SSL_CIPHER *cipher) {
       return EVP_sha256();
     case SSL_HANDSHAKE_MAC_SHA384:
       return EVP_sha384();
+    case SSL_HANDSHAKE_MAC_SM3:
+      return EVP_sm3();
   }
   assert(0);
   return nullptr;
@@ -1433,6 +1459,11 @@ int SSL_CIPHER_get_bits(const SSL_CIPHER *cipher, int *out_alg_bits) {
       strength_bits = 112;
       break;
 
+    case SSL_SM4CBC:
+      alg_bits = 128;
+      strength_bits = 128;
+      break;
+
     default:
       assert(0);
       alg_bits = 0;
@@ -1472,6 +1503,10 @@ const char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf,
       kx = "GENERIC";
       break;
 
+    case SSL_kSM2:
+      kx = "SM2";
+      break;
+
     default:
       kx = "unknown";
   }
@@ -1492,6 +1527,10 @@ const char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf,
 
     case SSL_aGENERIC:
       au = "GENERIC";
+      break;
+
+    case SSL_aSM2:
+      au = "SM2";
       break;
 
     default:
@@ -1524,6 +1563,10 @@ const char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf,
       enc = "ChaCha20-Poly1305";
       break;
 
+    case SSL_SM4CBC:
+      enc = "SM4-CBC(128)";
+      break;
+
     default:
       enc = "unknown";
       break;
@@ -1540,6 +1583,10 @@ const char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf,
 
     case SSL_AEAD:
       mac = "AEAD";
+      break;
+
+    case SSL_SM3:
+      mac = "SM3";
       break;
 
     default:

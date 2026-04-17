@@ -1486,6 +1486,9 @@ DEFINE_CONST_STACK_OF(SSL_CIPHER)
 #define SSL_CIPHER_PSK_WITH_AES_256_CBC_SHA 0x008d
 #define SSL_CIPHER_RSA_WITH_3DES_EDE_CBC_SHA 0x000a
 
+// TLCP cipher suites (GB/T 38636-2020).
+#define SSL_CIPHER_ECC_SM2_SM4_CBC_SM3 0xe013
+
 // The following constants are not cipher suites, but are used in the protocol
 // as signalling values.
 #define SSL_CIPHER_EMPTY_RENEGOTIATION_INFO_SCSV 0x00ff
