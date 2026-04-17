@@ -1213,6 +1213,14 @@ int ssl_ctx_use_tlcp_certificate(SSL_CTX *ctx, X509 *x, EVP_PKEY *pkey,
 // used for encryption. It returns one on success and zero on error.
 int ssl_use_tlcp_certificate(SSL *ssl, X509 *x, EVP_PKEY *pkey, bool is_sign);
 
+// tlcp_encrypt_pre_master_secret encrypts the pre-master secret using
+// the server's SM2 encryption certificate public key. On success, returns
+// true and writes the ciphertext to |out| with length |*out_len|.
+// The pre-master secret is also stored in |hs->pre_master_secret|.
+bool tlcp_encrypt_pre_master_secret(SSL_HANDSHAKE *hs,
+                                    const EVP_PKEY *server_enc_pkey,
+                                    uint8_t *out, size_t *out_len);
+
 
 // TLS 1.3 key derivation.
 
@@ -1931,6 +1939,10 @@ struct SSL_HANDSHAKE {
 
   // key_block is the record-layer key block for TLS 1.2 and earlier.
   Array<uint8_t> key_block;
+
+  // pre_master_secret stores the pre-master secret for TLCP key exchange.
+  // This is populated during the ClientKeyExchange message processing.
+  Array<uint8_t> pre_master_secret;
 
   // hints contains the handshake hints for this connection. If
   // |hints_requested| is true, this field is non-null and contains the pending

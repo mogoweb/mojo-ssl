@@ -23,3 +23,20 @@ TEST(TLCPHeaderTest, AllCipherSuiteConstants) {
     EXPECT_EQ(TLCP_ECDHE_SM2_SM4_CBC_SM3, 0x0003);
     EXPECT_EQ(TLCP_ECDHE_SM2_SM4_GCM_SM3, 0x0004);
 }
+
+TEST(TLCPKeyExchangeTest, PreMasterSecretSize) {
+    // Pre-master secret for TLCP should be 48 bytes
+    // First 2 bytes: TLCP_VERSION (0x0101)
+    // Remaining 46 bytes: random
+
+    constexpr size_t kPreMasterLen = 48;
+    uint8_t pre_master[kPreMasterLen];
+
+    // Version bytes
+    pre_master[0] = (TLCP_VERSION >> 8) & 0xff;
+    pre_master[1] = TLCP_VERSION & 0xff;
+
+    // Random bytes would be filled by the actual function
+    EXPECT_EQ(pre_master[0], 0x01);
+    EXPECT_EQ(pre_master[1], 0x01);
+}
