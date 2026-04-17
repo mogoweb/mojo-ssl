@@ -2885,6 +2885,7 @@ boringssl_ssl_sources := \
   ssl/tlcp_client.cc \
   ssl/tlcp_lib.cc \
   ssl/tlcp_method.cc \
+  ssl/tlcp_server.cc \
   ssl/tls13_both.cc \
   ssl/tls13_client.cc \
   ssl/tls13_enc.cc \

@@ -743,7 +743,8 @@
             "ssl/tls_record.cc",
             "ssl/tlcp_client.cc",
             "ssl/tlcp_lib.cc",
-            "ssl/tlcp_method.cc"
+            "ssl/tlcp_method.cc",
+            "ssl/tlcp_server.cc"
         ],
         "hdrs": [
             "include/openssl/dtls1.h",

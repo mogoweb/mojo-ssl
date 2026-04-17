@@ -1221,6 +1221,17 @@ bool tlcp_encrypt_pre_master_secret(SSL_HANDSHAKE *hs,
                                     const EVP_PKEY *server_enc_pkey,
                                     uint8_t *out, size_t *out_len);
 
+// tlcp_decrypt_pre_master_secret decrypts the ClientKeyExchange content
+// using the server's SM2 encryption private key. On success, returns
+// true and writes the plaintext to |out| with length |*out_len|.
+// The decrypted pre-master secret is also stored in |hs->pre_master_secret|.
+// The function verifies that the decrypted length is 48 bytes and that
+// the first 2 bytes match TLCP_VERSION.
+bool tlcp_decrypt_pre_master_secret(SSL_HANDSHAKE *hs,
+                                    const EVP_PKEY *server_enc_pkey,
+                                    const uint8_t *in, size_t in_len,
+                                    uint8_t *out, size_t *out_len);
+
 
 // TLS 1.3 key derivation.
 
