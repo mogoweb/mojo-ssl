@@ -1232,6 +1232,26 @@ bool tlcp_decrypt_pre_master_secret(SSL_HANDSHAKE *hs,
                                     const uint8_t *in, size_t in_len,
                                     uint8_t *out, size_t *out_len);
 
+// tlcp_generate_master_secret generates the master secret from the pre-master
+// secret using the TLS 1.2 PRF with SM3. |out| must have size 48 bytes.
+// master_secret = PRF(pre_master_secret, "master secret",
+//                     ClientRandom || ServerRandom)
+bool tlcp_generate_master_secret(SSL_HANDSHAKE *hs, Span<uint8_t> out,
+                                 Span<const uint8_t> premaster);
+
+// tlcp_setup_key_block derives the key block for TLCP. |out| must have size
+// 128 bytes. The key block layout for SM4-CBC with SM3 is:
+//   client_write_MAC_key[32]
+//   server_write_MAC_key[32]
+//   client_write_key[16]
+//   server_write_key[16]
+//   client_write_IV[16]
+//   server_write_IV[16]
+// key_block = PRF(master_secret, "key expansion",
+//                 ServerRandom || ClientRandom)
+bool tlcp_setup_key_block(SSL_HANDSHAKE *hs, Span<uint8_t> out,
+                          Span<const uint8_t> master_secret);
+
 
 // TLS 1.3 key derivation.
 

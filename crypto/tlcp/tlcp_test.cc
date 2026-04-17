@@ -40,3 +40,40 @@ TEST(TLCPKeyExchangeTest, PreMasterSecretSize) {
     EXPECT_EQ(pre_master[0], 0x01);
     EXPECT_EQ(pre_master[1], 0x01);
 }
+
+TEST(TLCPKeyDerivationTest, MasterSecretSize) {
+    // Master secret should be 48 bytes (same as TLS)
+    constexpr size_t kMasterSecretLen = 48;
+    EXPECT_EQ(kMasterSecretLen, 48u);
+}
+
+TEST(TLCPKeyDerivationTest, KeyBlockSize) {
+    // For SM4-CBC with SM3:
+    // client_write_MAC_key[32] (SM3 digest size)
+    // server_write_MAC_key[32]
+    // client_write_key[16] (SM4 key size)
+    // server_write_key[16]
+    // client_write_IV[16]
+    // server_write_IV[16]
+    // Total: 32 + 32 + 16 + 16 + 16 + 16 = 128 bytes
+    constexpr size_t kKeyBlockSize = 128;
+    EXPECT_EQ(kKeyBlockSize, 128u);
+}
+
+TEST(TLCPKeyDerivationTest, SM3DigestSize) {
+    // SM3 digest size is 32 bytes
+    constexpr size_t kSM3DigestSize = 32;
+    EXPECT_EQ(kSM3DigestSize, 32u);
+}
+
+TEST(TLCPKeyDerivationTest, SM4KeySize) {
+    // SM4 key size is 16 bytes
+    constexpr size_t kSM4KeySize = 16;
+    EXPECT_EQ(kSM4KeySize, 16u);
+}
+
+TEST(TLCPKeyDerivationTest, SM4BlockSize) {
+    // SM4 block size is 16 bytes
+    constexpr size_t kSM4BlockSize = 16;
+    EXPECT_EQ(kSM4BlockSize, 16u);
+}

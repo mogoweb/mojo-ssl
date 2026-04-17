@@ -55,6 +55,20 @@ bool tlcp_validate_certificate(X509 *x, EVP_PKEY *pkey, bool require_signing) {
   return true;
 }
 
+// TLCP key derivation constants.
+// Master secret length (same as TLS 1.2)
+static constexpr size_t kTLCPMasterSecretLen = 48;
+
+// Key block layout for SM4-CBC with SM3:
+//   client_write_MAC_key[32]
+//   server_write_MAC_key[32]
+//   client_write_key[16]
+//   server_write_key[16]
+//   client_write_IV[16]
+//   server_write_IV[16]
+// Total: 2 * (32 + 16 + 16) = 128 bytes
+static constexpr size_t kTLCPKeyBlockSize = 128;
+
 }  // namespace
 
 int ssl_ctx_use_tlcp_certificate(SSL_CTX *ctx, X509 *x, EVP_PKEY *pkey,
@@ -137,6 +151,79 @@ int ssl_use_tlcp_certificate(SSL *ssl, X509 *x, EVP_PKEY *pkey, bool is_sign) {
   }
 
   return 1;
+}
+
+// tlcp_generate_master_secret generates the master secret from
+// the pre-master secret using the TLS 1.2 PRF with SM3.
+// master_secret = PRF(pre_master_secret, "master secret",
+//                     ClientRandom || ServerRandom)[0..47]
+bool tlcp_generate_master_secret(SSL_HANDSHAKE *hs, Span<uint8_t> out,
+                                 Span<const uint8_t> premaster) {
+  if (hs == nullptr || hs->ssl == nullptr) {
+    return false;
+  }
+
+  SSL *ssl = hs->ssl;
+
+  // Use SM3 as the hash function for PRF
+  // The cipher suite determines the PRF hash
+  const EVP_MD *digest = EVP_sm3();
+  if (digest == nullptr) {
+    OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
+    return false;
+  }
+
+  // Generate master secret using TLS 1.2 PRF
+  // PRF(secret, label, seed) = P_<hash>(secret, label + seed)
+  if (!tls1_prf(digest, out, premaster, "master secret",
+                ssl->s3->client_random, ssl->s3->server_random)) {
+    OPENSSL_PUT_ERROR(SSL, TLCP_R_HANDSHAKE_FAILURE);
+    return false;
+  }
+
+  return true;
+}
+
+// tlcp_setup_key_block derives the key block for TLCP.
+// The key block layout for SM4-CBC with SM3:
+//   client_write_MAC_key[32]
+//   server_write_MAC_key[32]
+//   client_write_key[16]
+//   server_write_key[16]
+//   client_write_IV[16]
+//   server_write_IV[16]
+// key_block = PRF(master_secret, "key expansion",
+//                 ServerRandom || ClientRandom)
+bool tlcp_setup_key_block(SSL_HANDSHAKE *hs, Span<uint8_t> out,
+                          Span<const uint8_t> master_secret) {
+  if (hs == nullptr || hs->ssl == nullptr) {
+    return false;
+  }
+
+  SSL *ssl = hs->ssl;
+
+  // Check output size
+  if (out.size() != kTLCPKeyBlockSize) {
+    OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
+    return false;
+  }
+
+  // Use SM3 as the hash function for PRF
+  const EVP_MD *digest = EVP_sm3();
+  if (digest == nullptr) {
+    OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
+    return false;
+  }
+
+  // Generate key block using TLS 1.2 PRF
+  // Note: ServerRandom comes before ClientRandom for key expansion
+  if (!tls1_prf(digest, out, master_secret, "key expansion",
+                ssl->s3->server_random, ssl->s3->client_random)) {
+    OPENSSL_PUT_ERROR(SSL, TLCP_R_HANDSHAKE_FAILURE);
+    return false;
+  }
+
+  return true;
 }
 
 BSSL_NAMESPACE_END
