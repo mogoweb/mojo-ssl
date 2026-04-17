@@ -27,6 +27,7 @@
 #include <openssl/ec_key.h>
 #include <openssl/ecdsa.h>
 #include <openssl/err.h>
+#include <openssl/evp.h>
 #include <openssl/mem.h>
 #include <openssl/nid.h>
 #include <openssl/pem.h>
@@ -160,6 +161,8 @@ static void PrintUsage(const char *name) {
           "  genkey           Generate SM2 key pair\n"
           "  encrypt          Encrypt with SM2 public key\n"
           "  decrypt          Decrypt with SM2 private key\n"
+          "  sign             Sign data with SM2 private key\n"
+          "  verify           Verify SM2 signature with public key\n"
           "\n"
           "genkey options:\n"
           "  -out-private FILE    Output private key file (PEM format)\n"
@@ -175,6 +178,18 @@ static void PrintUsage(const char *name) {
           "  -out FILE            Output file (default: stdout)\n"
           "  -privkey FILE        Private key file (PEM format)\n"
           "\n"
+          "sign options:\n"
+          "  -in FILE             Input file to sign (default: stdin)\n"
+          "  -out FILE            Output signature file (default: stdout)\n"
+          "  -privkey FILE        Private key file (PEM format)\n"
+          "  -id STRING           User ID for Z value computation (default: 1234567812345678)\n"
+          "\n"
+          "verify options:\n"
+          "  -in FILE             Input file to verify (default: stdin)\n"
+          "  -sig FILE            Signature file\n"
+          "  -pubkey FILE         Public key file (PEM format)\n"
+          "  -id STRING           User ID for Z value computation (default: 1234567812345678)\n"
+          "\n"
           "Examples:\n"
           "  # Generate key pair\n"
           "  %s genkey -out-private sm2_priv.pem -out-public sm2_pub.pem\n"
@@ -183,8 +198,14 @@ static void PrintUsage(const char *name) {
           "  %s encrypt -pubkey sm2_pub.pem -in plaintext.txt -out ciphertext.bin\n"
           "\n"
           "  # Decrypt a file\n"
-          "  %s decrypt -privkey sm2_priv.pem -in ciphertext.bin -out plaintext.txt\n",
-          name, name, name, name);
+          "  %s decrypt -privkey sm2_priv.pem -in ciphertext.bin -out plaintext.txt\n"
+          "\n"
+          "  # Sign a file\n"
+          "  %s sign -privkey sm2_priv.pem -in message.txt -out signature.bin\n"
+          "\n"
+          "  # Verify a signature\n"
+          "  %s verify -pubkey sm2_pub.pem -in message.txt -sig signature.bin\n",
+          name, name, name, name, name, name);
 }
 
 // SM2 key generation
@@ -394,6 +415,230 @@ static bool SM2Decrypt(const std::vector<std::string> &args) {
   return true;
 }
 
+// SM2 signing
+static bool SM2Sign(const std::vector<std::string> &args) {
+  std::string input_file = "-", output_file, privkey_file, user_id;
+
+  for (size_t i = 0; i < args.size(); i++) {
+    const std::string &arg = args[i];
+
+    if ((arg == "-in" || arg == "-input") && i + 1 < args.size()) {
+      input_file = args[++i];
+    } else if ((arg == "-out" || arg == "-output") && i + 1 < args.size()) {
+      output_file = args[++i];
+    } else if ((arg == "-privkey" || arg == "-private-key") && i + 1 < args.size()) {
+      privkey_file = args[++i];
+    } else if (arg == "-id" && i + 1 < args.size()) {
+      user_id = args[++i];
+    } else if (arg[0] == '-') {
+      fprintf(stderr, "Unknown option: %s\n", arg.c_str());
+      return false;
+    }
+  }
+
+  if (privkey_file.empty()) {
+    fprintf(stderr, "Error: Private key file is required. Use -privkey option.\n");
+    return false;
+  }
+
+  // Read private key
+  bssl::UniquePtr<EC_KEY> ec_key = ReadKeyFromPEM(privkey_file, true);
+  if (!ec_key) {
+    return false;
+  }
+
+  // Verify it's an SM2 key
+  const EC_GROUP *group = EC_KEY_get0_group(ec_key.get());
+  if (!group || EC_GROUP_get_curve_name(group) != NID_sm2) {
+    fprintf(stderr, "Error: The private key is not an SM2 key.\n");
+    return false;
+  }
+
+  // Create EVP_PKEY from EC_KEY
+  bssl::UniquePtr<EVP_PKEY> pkey(EVP_PKEY_new());
+  if (!pkey || !EVP_PKEY_assign_SM2(pkey.get(), ec_key.get())) {
+    fprintf(stderr, "Failed to create EVP_PKEY from EC_KEY.\n");
+    ERR_print_errors_fp(stderr);
+    return false;
+  }
+  ec_key.release();  // Ownership transferred to EVP_PKEY
+
+  // Read input data
+  ScopedFILE in_file = OpenInputFILE(input_file);
+  if (!in_file) {
+    return false;
+  }
+
+  std::vector<uint8_t> message;
+  if (!ReadAll(&message, in_file.get())) {
+    fprintf(stderr, "Failed to read input file.\n");
+    return false;
+  }
+
+  // Create signing context - SM2 uses SM3 internally
+  bssl::ScopedEVP_MD_CTX md_ctx;
+  EVP_PKEY_CTX *pctx = nullptr;
+  if (!EVP_DigestSignInit(md_ctx.get(), &pctx, EVP_sm3(), nullptr, pkey.get())) {
+    fprintf(stderr, "Failed to initialize signing context.\n");
+    ERR_print_errors_fp(stderr);
+    return false;
+  }
+
+  // Set user ID if provided
+  if (!user_id.empty()) {
+    if (EVP_PKEY_CTX_set_sm2_user_id(pctx,
+                                     reinterpret_cast<const uint8_t *>(user_id.data()),
+                                     user_id.size()) <= 0) {
+      fprintf(stderr, "Failed to set user ID.\n");
+      ERR_print_errors_fp(stderr);
+      return false;
+    }
+  }
+
+  // Determine signature length
+  size_t sig_len = 0;
+  if (!EVP_DigestSign(md_ctx.get(), nullptr, &sig_len, message.data(), message.size())) {
+    fprintf(stderr, "Failed to determine signature length.\n");
+    ERR_print_errors_fp(stderr);
+    return false;
+  }
+
+  // Sign
+  std::vector<uint8_t> signature(sig_len);
+  if (!EVP_DigestSign(md_ctx.get(), signature.data(), &sig_len,
+                      message.data(), message.size())) {
+    fprintf(stderr, "SM2 signing failed.\n");
+    ERR_print_errors_fp(stderr);
+    return false;
+  }
+
+  // Write output
+  ScopedFILE out_file = OpenOutputFILE(output_file);
+  if (!out_file) {
+    return false;
+  }
+
+  if (fwrite(signature.data(), 1, sig_len, out_file.get()) != sig_len) {
+    fprintf(stderr, "Failed to write output: %s\n", strerror(errno));
+    return false;
+  }
+
+  return true;
+}
+
+// SM2 verification
+static bool SM2Verify(const std::vector<std::string> &args) {
+  std::string input_file = "-", sig_file, pubkey_file, user_id;
+
+  for (size_t i = 0; i < args.size(); i++) {
+    const std::string &arg = args[i];
+
+    if ((arg == "-in" || arg == "-input") && i + 1 < args.size()) {
+      input_file = args[++i];
+    } else if ((arg == "-sig" || arg == "-signature") && i + 1 < args.size()) {
+      sig_file = args[++i];
+    } else if ((arg == "-pubkey" || arg == "-public-key") && i + 1 < args.size()) {
+      pubkey_file = args[++i];
+    } else if (arg == "-id" && i + 1 < args.size()) {
+      user_id = args[++i];
+    } else if (arg[0] == '-') {
+      fprintf(stderr, "Unknown option: %s\n", arg.c_str());
+      return false;
+    }
+  }
+
+  if (pubkey_file.empty()) {
+    fprintf(stderr, "Error: Public key file is required. Use -pubkey option.\n");
+    return false;
+  }
+
+  if (sig_file.empty()) {
+    fprintf(stderr, "Error: Signature file is required. Use -sig option.\n");
+    return false;
+  }
+
+  // Read public key
+  bssl::UniquePtr<EC_KEY> ec_key = ReadKeyFromPEM(pubkey_file, false);
+  if (!ec_key) {
+    return false;
+  }
+
+  // Verify it's an SM2 key
+  const EC_GROUP *group = EC_KEY_get0_group(ec_key.get());
+  if (!group || EC_GROUP_get_curve_name(group) != NID_sm2) {
+    fprintf(stderr, "Error: The public key is not an SM2 key.\n");
+    return false;
+  }
+
+  // Create EVP_PKEY from EC_KEY
+  bssl::UniquePtr<EVP_PKEY> pkey(EVP_PKEY_new());
+  if (!pkey || !EVP_PKEY_assign_SM2(pkey.get(), ec_key.get())) {
+    fprintf(stderr, "Failed to create EVP_PKEY from EC_KEY.\n");
+    ERR_print_errors_fp(stderr);
+    return false;
+  }
+  ec_key.release();  // Ownership transferred to EVP_PKEY
+
+  // Read input data
+  ScopedFILE in_file = OpenInputFILE(input_file);
+  if (!in_file) {
+    return false;
+  }
+
+  std::vector<uint8_t> message;
+  if (!ReadAll(&message, in_file.get())) {
+    fprintf(stderr, "Failed to read input file.\n");
+    return false;
+  }
+
+  // Read signature
+  ScopedFILE sig_fp = OpenInputFILE(sig_file);
+  if (!sig_fp) {
+    return false;
+  }
+
+  std::vector<uint8_t> signature;
+  if (!ReadAll(&signature, sig_fp.get())) {
+    fprintf(stderr, "Failed to read signature file.\n");
+    return false;
+  }
+
+  // Create verification context - SM2 uses SM3 internally
+  bssl::ScopedEVP_MD_CTX md_ctx;
+  EVP_PKEY_CTX *pctx = nullptr;
+  if (!EVP_DigestVerifyInit(md_ctx.get(), &pctx, EVP_sm3(), nullptr, pkey.get())) {
+    fprintf(stderr, "Failed to initialize verification context.\n");
+    ERR_print_errors_fp(stderr);
+    return false;
+  }
+
+  // Set user ID if provided
+  if (!user_id.empty()) {
+    if (EVP_PKEY_CTX_set_sm2_user_id(pctx,
+                                     reinterpret_cast<const uint8_t *>(user_id.data()),
+                                     user_id.size()) <= 0) {
+      fprintf(stderr, "Failed to set user ID.\n");
+      ERR_print_errors_fp(stderr);
+      return false;
+    }
+  }
+
+  // Verify
+  int ret = EVP_DigestVerify(md_ctx.get(), signature.data(), signature.size(),
+                             message.data(), message.size());
+  if (ret == 1) {
+    fprintf(stderr, "Signature verified successfully.\n");
+    return true;
+  } else if (ret == 0) {
+    fprintf(stderr, "Signature verification failed.\n");
+    return false;
+  } else {
+    fprintf(stderr, "Error during signature verification.\n");
+    ERR_print_errors_fp(stderr);
+    return false;
+  }
+}
+
 bool SM2Tool(const std::vector<std::string> &args) {
   if (args.empty()) {
     PrintUsage("sm2");
@@ -409,6 +654,10 @@ bool SM2Tool(const std::vector<std::string> &args) {
     return SM2Encrypt(sub_args);
   } else if (command == "decrypt") {
     return SM2Decrypt(sub_args);
+  } else if (command == "sign") {
+    return SM2Sign(sub_args);
+  } else if (command == "verify") {
+    return SM2Verify(sub_args);
   } else if (command == "-h" || command == "--help" || command == "help") {
     PrintUsage("sm2");
     return true;
