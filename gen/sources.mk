@@ -819,6 +819,7 @@ boringssl_crypto_test_sources := \
   crypto/stack/stack_test.cc \
   crypto/test/gtest_main.cc \
   crypto/thread_test.cc \
+  crypto/tlcp/tlcp_test.cc \
   crypto/trust_token/trust_token_test.cc \
   crypto/x509/x509_test.cc \
   crypto/x509/x509_time_test.cc \
