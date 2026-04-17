@@ -46,15 +46,16 @@ OPENSSL_EXPORT int SSL_use_tlcp_enc_certificate(SSL *ssl, X509 *x,
 OPENSSL_EXPORT int SSL_is_tlcp(const SSL *ssl);
 
 // TLCP error codes.
-#define TLCP_R_INVALID_DUAL_CERTIFICATE        100
-#define TLCP_R_MISSING_ENCRYPTION_CERTIFICATE   101
-#define TLCP_R_MISSING_SIGNING_CERTIFICATE      102
-#define TLCP_R_INVALID_CERTIFICATE_USAGE        103
-#define TLCP_R_SM2_ENCRYPTION_FAILED            104
-#define TLCP_R_SM2_DECRYPTION_FAILED            105
-#define TLCP_R_INVALID_PRE_MASTER_SECRET        106
-#define TLCP_R_UNSUPPORTED_CIPHER_SUITE         107
-#define TLCP_R_HANDSHAKE_FAILURE                108
+// Note: These start at 500 to avoid conflicts with existing SSL_R_* codes.
+#define TLCP_R_INVALID_DUAL_CERTIFICATE        500
+#define TLCP_R_MISSING_ENCRYPTION_CERTIFICATE   501
+#define TLCP_R_MISSING_SIGNING_CERTIFICATE      502
+#define TLCP_R_INVALID_CERTIFICATE_USAGE        503
+#define TLCP_R_SM2_ENCRYPTION_FAILED            504
+#define TLCP_R_SM2_DECRYPTION_FAILED            505
+#define TLCP_R_INVALID_PRE_MASTER_SECRET        506
+#define TLCP_R_UNSUPPORTED_CIPHER_SUITE         507
+#define TLCP_R_HANDSHAKE_FAILURE                508
 
 #if defined(__cplusplus)
 }
