@@ -741,6 +741,7 @@
             "ssl/tls13_server.cc",
             "ssl/tls_method.cc",
             "ssl/tls_record.cc",
+            "ssl/tlcp_lib.cc",
             "ssl/tlcp_method.cc"
         ],
         "hdrs": [

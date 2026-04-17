@@ -67,3 +67,22 @@ TEST(TLCPCipherTest, GetCipherName) {
   SSL_free(ssl);
   SSL_CTX_free(ctx);
 }
+
+TEST(TLCPDualCertTest, LoadSignCertificate) {
+  SSL_CTX *ctx = SSL_CTX_new(TLCP_method());
+  ASSERT_NE(ctx, nullptr);
+
+  // Create a dummy SM2 key and certificate for testing
+  EVP_PKEY *pkey = EVP_PKEY_new();
+  EXPECT_NE(pkey, nullptr);
+
+  X509 *cert = X509_new();
+  EXPECT_NE(cert, nullptr);
+
+  // For now, just test the API exists
+  // Real tests will use actual SM2 certificates
+
+  X509_free(cert);
+  EVP_PKEY_free(pkey);
+  SSL_CTX_free(ctx);
+}

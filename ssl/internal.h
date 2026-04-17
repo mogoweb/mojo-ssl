@@ -1197,6 +1197,22 @@ bool ssl_add_CA_names(const SSL_HANDSHAKE *hs, CBB *cbb);
 bool ssl_check_leaf_certificate(SSL_HANDSHAKE *hs, EVP_PKEY *pkey,
                                 const CRYPTO_BUFFER *leaf);
 
+// TLCP dual certificate functions.
+//
+// TLCP requires separate certificates for signing and encryption. These
+// functions configure the dual certificates for TLCP connections.
+
+// ssl_ctx_use_tlcp_certificate configures a TLCP certificate on |ctx|. If
+// |is_sign| is true, the certificate is used for signing; otherwise, it is
+// used for encryption. It returns one on success and zero on error.
+int ssl_ctx_use_tlcp_certificate(SSL_CTX *ctx, X509 *x, EVP_PKEY *pkey,
+                                 bool is_sign);
+
+// ssl_use_tlcp_certificate configures a TLCP certificate on |ssl|. If
+// |is_sign| is true, the certificate is used for signing; otherwise, it is
+// used for encryption. It returns one on success and zero on error.
+int ssl_use_tlcp_certificate(SSL *ssl, X509 *x, EVP_PKEY *pkey, bool is_sign);
+
 
 // TLS 1.3 key derivation.
 
@@ -2429,6 +2445,13 @@ struct CERT {
   // non-credential-based APIs. If IsComplete() returns true, it is appended to
   // the list of credentials.
   UniquePtr<SSL_CREDENTIAL> legacy_credential;
+
+  // TLCP dual certificate support. TLCP requires separate certificates for
+  // signing and encryption. tlcp_sign is the signing certificate for
+  // authentication, and tlcp_enc is the encryption certificate for key
+  // exchange.
+  UniquePtr<SSL_CREDENTIAL> tlcp_sign;
+  UniquePtr<SSL_CREDENTIAL> tlcp_enc;
 
   // x509_method contains pointers to functions that might deal with |X509|
   // compatibility, or might be a no-op, depending on the application.
