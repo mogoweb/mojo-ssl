@@ -2883,6 +2883,7 @@ boringssl_ssl_sources := \
   ssl/ssl_x509.cc \
   ssl/t1_enc.cc \
   ssl/tlcp_client.cc \
+  ssl/tlcp_handshake.cc \
   ssl/tlcp_lib.cc \
   ssl/tlcp_method.cc \
   ssl/tlcp_server.cc \
@@ -2909,6 +2910,7 @@ boringssl_ssl_test_sources := \
   ssl/ssl_c_test.c \
   ssl/ssl_internal_test.cc \
   ssl/ssl_test.cc \
+  ssl/test/tlcp_test.cc \
   ssl/tlcp_test.cc
 
 boringssl_test_support_sources := \
