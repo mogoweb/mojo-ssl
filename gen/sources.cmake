@@ -3011,6 +3011,7 @@ set(
   ssl/ssl_c_test.c
   ssl/ssl_internal_test.cc
   ssl/ssl_test.cc
+  ssl/test/tlcp_test.cc
   ssl/tlcp_test.cc
 )
 
