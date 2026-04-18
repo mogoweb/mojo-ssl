@@ -1269,6 +1269,8 @@ size_t tlcp_get_cipher_key_len(void);
 // tlcp_get_iv_len returns IV length for TLCP.
 size_t tlcp_get_iv_len(void);
 
+// tlcp_handshake performs TLCP handshake.
+bool tlcp_handshake(SSL_HANDSHAKE *hs);
 
 
 // tls13_init_key_schedule initializes the handshake hash and key derivation

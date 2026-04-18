@@ -95,3 +95,11 @@ TEST(TLCPRecordTest, SM4BlockSize) {
     constexpr size_t kSM4BlockSize = 16;
     EXPECT_EQ(kSM4BlockSize, 16u);
 }
+
+TEST(TLCPHandshakeTest, BasicConstants) {
+    // Verify basic handshake constants exist
+    // Full SSL integration tests will be in ssl/test/tlcp_test.cc
+    // This test just validates constants are defined
+    EXPECT_EQ(TLCP_VERSION, 0x0101);
+    EXPECT_EQ(TLCP_ECC_SM2_SM4_CBC_SM3, 0x0001);
+}
