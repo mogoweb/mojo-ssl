@@ -1254,6 +1254,22 @@ bool tlcp_setup_key_block(SSL_HANDSHAKE *hs, Span<uint8_t> out,
 
 
 // TLS 1.3 key derivation.
+// tlcp_get_cipher returns SM4-CBC cipher for TLCP.
+const EVP_CIPHER *tlcp_get_cipher(void);
+
+// tlcp_get_digest returns SM3 digest for TLCP.
+const EVP_MD *tlcp_get_digest(void);
+
+// tlcp_get_mac_key_len returns MAC key length for TLCP.
+size_t tlcp_get_mac_key_len(void);
+
+// tlcp_get_cipher_key_len returns cipher key length for TLCP.
+size_t tlcp_get_cipher_key_len(void);
+
+// tlcp_get_iv_len returns IV length for TLCP.
+size_t tlcp_get_iv_len(void);
+
+
 
 // tls13_init_key_schedule initializes the handshake hash and key derivation
 // state, and incorporates the PSK. The cipher suite and PRF hash must have been

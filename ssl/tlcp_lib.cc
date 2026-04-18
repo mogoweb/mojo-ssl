@@ -10,6 +10,8 @@
 #include <openssl/tlcp.h>
 #include <openssl/err.h>
 #include <openssl/x509.h>
+#include <openssl/sm3.h>
+#include <openssl/sm4.h>
 
 #include "../crypto/internal.h"
 #include "internal.h"
@@ -224,6 +226,31 @@ bool tlcp_setup_key_block(SSL_HANDSHAKE *hs, Span<uint8_t> out,
   }
 
   return true;
+}
+
+// tlcp_get_cipher returns the SM4-CBC cipher for TLCP.
+const EVP_CIPHER *tlcp_get_cipher(void) {
+  return EVP_sm4_cbc();
+}
+
+// tlcp_get_digest returns the SM3 digest for TLCP.
+const EVP_MD *tlcp_get_digest(void) {
+  return EVP_sm3();
+}
+
+// tlcp_get_mac_key_len returns the MAC key length for TLCP.
+size_t tlcp_get_mac_key_len(void) {
+  return SM3_DIGEST_LENGTH;  // 32 bytes
+}
+
+// tlcp_get_cipher_key_len returns the cipher key length for TLCP.
+size_t tlcp_get_cipher_key_len(void) {
+  return SM4_BLOCK_SIZE;  // 16 bytes
+}
+
+// tlcp_get_iv_len returns the IV length for TLCP.
+size_t tlcp_get_iv_len(void) {
+  return SM4_BLOCK_SIZE;  // 16 bytes
 }
 
 BSSL_NAMESPACE_END

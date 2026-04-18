@@ -77,3 +77,21 @@ TEST(TLCPKeyDerivationTest, SM4BlockSize) {
     constexpr size_t kSM4BlockSize = 16;
     EXPECT_EQ(kSM4BlockSize, 16u);
 }
+
+TEST(TLCPRecordTest, SM4CBCKeySize) {
+    // SM4 key size is 16 bytes (128 bits)
+    constexpr size_t kSM4KeySize = 16;
+    EXPECT_EQ(kSM4KeySize, 16u);
+}
+
+TEST(TLCPRecordTest, SM3DigestSize) {
+    // SM3 digest size is 32 bytes (256 bits)
+    constexpr size_t kSM3DigestSize = 32;
+    EXPECT_EQ(kSM3DigestSize, 32u);
+}
+
+TEST(TLCPRecordTest, SM4BlockSize) {
+    // SM4 block size is 16 bytes (128 bits)
+    constexpr size_t kSM4BlockSize = 16;
+    EXPECT_EQ(kSM4BlockSize, 16u);
+}

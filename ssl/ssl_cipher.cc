@@ -559,6 +559,8 @@ const EVP_MD *ssl_get_handshake_digest(uint16_t version,
       return EVP_sha256();
     case SSL_HANDSHAKE_MAC_SHA384:
       return EVP_sha384();
+    case SSL_HANDSHAKE_MAC_SM3:
+      return EVP_sm3();
     default:
       assert(0);
       return nullptr;
